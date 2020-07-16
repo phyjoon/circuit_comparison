@@ -83,6 +83,13 @@ if __name__ == '__main__':
     print(f"Hamiltonian VEV: {H}")
     
     
+    ################### 
+    # TODO Add a simple option for optimizers
+    # TODO Randomize the params
+    # TODO Manage experimental results using comet.ml or tensorboard
+    ###################     
+    
+    
     
     # model.quantum_circuits(torch.zeros(6), [1], 3)
 
