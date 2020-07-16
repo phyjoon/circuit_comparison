@@ -14,6 +14,8 @@ from tensorboardX import SummaryWriter
 parser = argparse.ArgumentParser()
 parser.add_argument('-size', action='store', type=int, default=2,
                     help="Input the size of a qubit system")
+parser.add_argument('-optim', action='store', type=str, default="adam", 
+                    help="Input the optimizer")
 parser.add_argument('-type', action='store', type=int, nargs="+", default=[1], 
                     help="Input the circuit type")
 args = parser.parse_args()
@@ -70,7 +72,7 @@ if __name__ == '__main__':
     param_size = [model.param_shape(i, SIZE) for i in LAYERS]
 
     # Define the variational parameters
-    params = np.arange(sum(param_size))
+    params = 2 * np.pi * (np.random.rand(sum(param_size)) - 0.5)
     
     # Define the Hamiltonian operators
     operators, coeffs = Hamiltonian()
@@ -79,17 +81,25 @@ if __name__ == '__main__':
     qnodes = qml.map(circuit, operators, dev, measure="expval")
 
     # Evaluate the QNodeCollection
-    H = np.dot(coeffs, qnodes(params, size=SIZE, layers=LAYERS))
-    print(f"Hamiltonian VEV: {H}")
-    
-    
+    def Hamiltonian(params):
+        return np.dot(coeffs, qnodes(params, size=SIZE, layers=LAYERS))
+
     ################### 
     # TODO Add a simple option for optimizers
-    # TODO Randomize the params
+    # TODO Randomize the params -> Save later
     # TODO Manage experimental results using comet.ml or tensorboard
     ###################     
     
-    
+    if args.optim == "qng":
+        optim = qml.QNGOptimizer()
+    elif args.optim == "adam":
+        optim = qml.AdamOptimizer()
+    else:
+        optim = qml.GradientDescentOptimizer()
+        
+    for _ in range(100):
+        print(f"Hamiltonian VEV: {Hamiltonian(params)}")
+        params = optim.step(Hamiltonian, params)
     
     # model.quantum_circuits(torch.zeros(6), [1], 3)
 
