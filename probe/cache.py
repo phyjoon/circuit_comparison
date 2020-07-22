@@ -53,6 +53,7 @@ class NumpyCache(Cache):
 
     def clear(self):
         self.values = np.zeros(self.grid_size)
+        self._is_done = np.full(self.grid_size, False)
 
     def is_done(self, *pos):
         return self._is_done[pos]
