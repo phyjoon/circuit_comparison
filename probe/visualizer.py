@@ -9,7 +9,7 @@ from matplotlib import cm
 def plot_surface(x, y, z,
                  xlabel='x', ylabel='y', zlabel='loss',
                  draw_contour=True, draw_colorbar=True,
-                 show=True, save_path=None):
+                 show=True, pause_interval=0., save_path=None):
     """ Surface plot of 2D data values.
 
     Example,
@@ -31,6 +31,7 @@ def plot_surface(x, y, z,
         draw_contour: bool, whether to draw contour on the bottom of plot.
         draw_colorbar: bool, whether to draw color bar as well.
         show: bool, whether to show figure window
+        pause_interval: float, pausing time if positive.
         save_path: str, a file path where to save the figure.
     :return:
     """
@@ -71,7 +72,10 @@ def plot_surface(x, y, z,
         plt.savefig(save_path)
 
     if show:
-        plt.show()
+        if pause_interval > 0:
+            plt.pause(pause_interval)
+        else:
+            plt.show()
     return fig
 
 
