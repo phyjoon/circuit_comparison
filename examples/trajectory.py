@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pennylane as qml
 import pennylane.numpy as np
+
 from probe import models, PennylaneModelObserver
 
 #
@@ -59,10 +60,6 @@ def circuit(params, wires, size=None, layers=None):
         models.__dict__[f'circuit{layer:0>2d}'](params[idx_start:idx_end], wires)
 
 
-#
-# Main block
-#
-
 # Define the quantum device
 dev, wires = qml.device('default.qubit', wires=SIZE), list(range(SIZE))
 param_sizes = [models.param_shape(i, SIZE) for i in LAYERS]
@@ -77,19 +74,20 @@ operators, coeffs = Hamiltonian()
 qnodes = qml.map(circuit, operators, dev, measure="expval")
 
 
-# Evaluate the QNodeCollection
-def HNode(params):
+def HNode(params):  # Evaluate the QNodeCollection
     return np.dot(coeffs, qnodes(params, size=SIZE, layers=LAYERS))
 
 
+trajectory_length = 400
 loss_op, grad_op = HNode, qml.grad(HNode)
-
 observer = PennylaneModelObserver(loss_op, grad_op, params, param_sizes)
-observer.setup(scale=5., grid_size=20, cache_type='numpy')
+observer.setup(grid_size=50, cache_type='numpy', trajectory_length=trajectory_length)
+
+for step in range(trajectory_length):
+    loss_op, grad_op = HNode, qml.grad(HNode)
+    params -= 0.1 * grad_op(params)[0]  # lr=0.1
+    observer.update_model_params(params)
+    print(f'\r Step {step:02d}: loss={loss_op(params):.4f} '
+          f'params={params} grad={grad_op(params)[0]}', end='')
 observer.run()
-observer.plot(
-    draw_contour=True,
-    draw_colorbar=True,
-    show=True,
-    save_path=None
-)
+observer.plot(draw_trajectory=True)
