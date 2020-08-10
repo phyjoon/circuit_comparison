@@ -1,0 +1,98 @@
+import jax
+import jax.numpy as jnp
+import itertools
+
+import qutip
+import gate_jax as gates
+
+
+def create_target_states(n_qubits, n_samples, seed=None):
+    """ Create multiple target states with given qubit number.
+
+    Args:
+        n_qubits: int, number of qubits
+        n_samples: int, number of samples
+        seed: int, random seed
+    Returns:
+        jnp.ndarray, state vectors of shape (n_samples, 2^n_qubits)
+    """
+
+    dim = 2 ** n_qubits
+    haar_random_states = [
+        qutip.rand_ket_haar(N=dim, seed=seed).get_data().toarray().T
+        for _ in range(n_samples)]
+    return jnp.vstack(haar_random_states)
+
+
+def initialize_circuit_params(rng, n_qubits, n_layers):
+    """ Initialize a state
+
+    Args:
+        rng: PRNGKey, random generation key
+        n_qubits: int, number of qubits
+        n_layers: int, number of layers
+
+    Returns:
+        PRNGKey, random generation key
+        jnp.ndarray:
+    """
+
+    rng, sub_rng = jax.random.split(rng)
+    # TODO(jdk): Do we need to change this as a list of params rather than
+    #  flatten vector? Like, [random(n_qubits) for _ in range(n_layers)]
+    params = jax.random.uniform(sub_rng, (n_qubits * n_layers,)) * 2 * jnp.pi
+    return rng, params
+
+
+def state_norm(state):
+    """ Compute the norm of a state """
+    return jnp.real(jnp.sum(state * state.conj()))  # norm must be real.
+
+
+def block(params, qubits, state, n_qubit, rot_axis='Y'):
+    rot_axis = rot_axis.upper()
+    if rot_axis == 'X':
+        rotation_gate = gates.rx
+    elif rot_axis == 'Y':
+        rotation_gate = gates.ry
+    elif rot_axis == 'Z':
+        rotation_gate = gates.rz
+    else:
+        raise ValueError("rot_axis should be either 'X', 'Y', or 'Z'.")
+
+    # Rotation layer
+    for qubit, param in zip(qubits, params):
+        state = rotation_gate(param, n_qubit, qubit) @ state
+
+    # CZ layer
+    entangler_pairs = sorted(
+        itertools.combinations(range(len(qubits)), 2),
+        key=lambda x: abs(x[0] - x[1]), reverse=False)
+
+    for control, target in entangler_pairs:
+        state = gates.cz_gate(n_qubit, control, target) @ state
+
+    return state
+
+
+def alternating_layer_ansatz(params, n_qubit, s_block, n_layer, rot_axis='Y'):
+    # TODO(jdk): Check this function later whether we need to revise for scalability.
+    rot_axis = rot_axis.upper()
+    assert rot_axis in ('X', 'Y', 'Z')
+    assert n_qubit % s_block == 0
+    assert len(params) == n_qubit * n_layer
+
+    # Initial state
+    state = jnp.array([0] * (2 ** n_qubit - 1) + [1], dtype=jnp.complex64)
+
+    for d in range(n_layer):
+        block_idx = jnp.arange(n_qubit)
+        if d % 2:
+            block_idx = jnp.roll(block_idx, -(s_block // 2))
+        block_idx = jnp.reshape(block_idx, (-1, s_block))
+
+        for i in range(block_idx.shape[0]):
+            state = block(params=params[block_idx[i] + d * n_qubit],
+                          qubits=block_idx[i], state=state, n_qubit=n_qubit, rot_axis=rot_axis)
+
+    return state
