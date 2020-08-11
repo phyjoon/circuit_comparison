@@ -29,7 +29,7 @@ args = parser.parse_args()
 seed = args.seed
 n_qubits, n_layers, rot_axis = args.n_qubits, args.n_layers, args.rot_axis
 block_size = args.block_size
-exp_name = args.exp_name or f'Q{n_qubits}L{n_layers}_R{rot_axis}BS{block_size}'
+exp_name = args.exp_name or f'Q{n_qubits}L{n_layers}_R{rot_axis}BS{block_size}_S{seed}'
 expmgr.init(project='expressibility', name=exp_name, config=args)
 
 target_state = qnnops.create_target_states(n_qubits, 1, seed=seed)
