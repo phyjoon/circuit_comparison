@@ -1,0 +1,10 @@
+seed: 1
+# Circuit configuration parameters
+n_qubits: 4
+n_layers: 40
+block_size: 2
+rot_axis: "x"
+# Number of target samples
+n_samples: 1
+train_steps: 10
+lr: 0.01
