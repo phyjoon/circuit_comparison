@@ -116,6 +116,7 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
         early_stopping: bool, whether to early stop if the train loss value
             doesn't decrease further. (Not implemented yet)
     Returns:
+        params: jnp.array, optimized parameters
         history: dict, training history.
     """
 
@@ -130,21 +131,21 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
         params = get_params(optimizer_state)
         loss, grad = jax.value_and_grad(loss_fn)(params, **loss_args)
         optimizer_state = update_fun(step, grad, optimizer_state)
+        updated_params = get_params(optimizer_state)
 
         print(f'\rStep[{step:4d}]: loss={loss:.4f}', end='')
         wandb.log({'loss': loss.item()}, step=step)
 
         history['loss'].append(loss)
         history['grad'].append(grad)
-        jnp.save(expmgr.get_result_path('checkpoint_last.npy'), params)
+        jnp.save(expmgr.get_result_path('checkpoint_last.npy'), updated_params)
         if loss < min_loss:
-            jnp.save(expmgr.get_result_path('checkpoint_best.npy'), params)
+            jnp.save(expmgr.get_result_path('checkpoint_best.npy'), updated_params)
             min_loss = loss
             print(f' | min_loss={loss:.4f}->{min_loss:.4f}')
 
         if early_stopping:
             # TODO(jdk): implement early stopping feature.
             pass
-
     jnp.savez(expmgr.get_result_path('history.npz'), **history)
-    return history
+    return get_params(optimizer_state), history

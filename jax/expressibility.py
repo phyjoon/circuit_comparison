@@ -1,33 +1,60 @@
 import argparse
 
 import jax
+import jax.numpy as jnp
+import wandb
 
 import expmgr
 import qnnops
 
-args = expmgr.load_config('alt_example.yml')
-args = argparse.Namespace(**args)
-
+parser = argparse.ArgumentParser('Expressibility Test')
+parser.add_argument('--n-qubits', type=int, metavar='N',
+                    help='Number of qubits')
+parser.add_argument('--n-layers', type=int, metavar='N',
+                    help='Number of alternating layers')
+parser.add_argument('--rot-axis', type=str, metavar='R', choices=['x', 'y', 'z'],
+                    help='Direction of rotation gates.')
+parser.add_argument('--block-size', type=int, metavar='N',
+                    help='Size of a block to entangle multiple qubits.')
+parser.add_argument('--train-steps', type=int, metavar='N', default=int(1e3),
+                    help='Number of training steps.')
+parser.add_argument('--lr', type=float, metavar='LR', default=0.01,
+                    help='Initial value of learning rate.')
+parser.add_argument('--seed', type=int, metavar='N',
+                    help='Random seed. For reproducibility, the value is set explicitly.')
+parser.add_argument('--exp-name', type=str, metavar='NAME', default=None,
+                    help='Experiment name. If None, the following format will be used as '
+                         'the experiment name: Q{n_qubits}L{n_layers}_R{rot_axis}BS{block_size}')
+args = parser.parse_args()
 seed = args.seed
 n_qubits, n_layers, rot_axis = args.n_qubits, args.n_layers, args.rot_axis
 block_size = args.block_size
-exp_name = getattr(args, 'exp_name', f'Q{n_qubits}L{n_layers}_R{rot_axis}BS{block_size}')
+exp_name = args.exp_name or f'Q{n_qubits}L{n_layers}_R{rot_axis}BS{block_size}_S{seed}'
+expmgr.init(project='expressibility', name=exp_name, config=args)
 
 target_state = qnnops.create_target_states(n_qubits, 1, seed=seed)
-expmgr.init(
-    project='expressibility',
-    name=exp_name,
-    config=args
-)
+print('Target State:', target_state)
+wandb.log({'target_state': str(target_state)})
+jnp.save(expmgr.get_result_path('target_state.npy'), target_state)
+
+
+def circuit(params):
+    return qnnops.alternating_layer_ansatz(
+        params, n_qubits=n_qubits, block_size=block_size, n_layers=n_layers, rot_axis=rot_axis)
 
 
 def loss_fn(params):
-    ansatz_state = qnnops.alternating_layer_ansatz(
-        params, n_qubits=n_qubits, block_size=block_size, n_layers=n_layers, rot_axis=rot_axis)
+    ansatz_state = circuit(params)
     return qnnops.state_norm(ansatz_state - target_state) / (2 ** n_qubits)
 
 
 rng = jax.random.PRNGKey(seed)
 _, init_params = qnnops.initialize_circuit_params(rng, n_qubits, n_layers)
-loss = qnnops.train_loop(loss_fn, init_params, args.train_steps, args.lr)
+trained_params, _ = qnnops.train_loop(loss_fn, init_params, args.train_steps, args.lr)
+
+optimized_state = circuit(trained_params)
+print('Optimized State:', optimized_state)
+wandb.log({'optimized_state': str(optimized_state)})
+jnp.save(expmgr.get_result_path('optimized_state.npy'), optimized_state)
+
 expmgr.save_config(args)
