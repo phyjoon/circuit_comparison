@@ -1,8 +1,12 @@
-import jax
-import jax.numpy as jnp
 import itertools
 
+import jax
+import jax.numpy as jnp
 import qutip
+import wandb
+from jax.experimental import optimizers
+
+import expmgr
 import gate_jax as gates
 
 
@@ -34,7 +38,7 @@ def initialize_circuit_params(rng, n_qubits, n_layers):
 
     Returns:
         PRNGKey, random generation key
-        jnp.ndarray:
+        jnp.ndarray: initial random values in [0, 2pi)
     """
 
     rng, sub_rng = jax.random.split(rng)
@@ -75,24 +79,72 @@ def block(params, qubits, state, n_qubit, rot_axis='Y'):
     return state
 
 
-def alternating_layer_ansatz(params, n_qubit, s_block, n_layer, rot_axis='Y'):
+def alternating_layer_ansatz(params, n_qubits, block_size, n_layers, rot_axis='Y'):
     # TODO(jdk): Check this function later whether we need to revise for scalability.
     rot_axis = rot_axis.upper()
     assert rot_axis in ('X', 'Y', 'Z')
-    assert n_qubit % s_block == 0
-    assert len(params) == n_qubit * n_layer
+    assert n_qubits % block_size == 0
+    assert len(params) == n_qubits * n_layers
 
     # Initial state
-    state = jnp.array([0] * (2 ** n_qubit - 1) + [1], dtype=jnp.complex64)
+    state = jnp.array([0] * (2 ** n_qubits - 1) + [1], dtype=jnp.complex64)
 
-    for d in range(n_layer):
-        block_idx = jnp.arange(n_qubit)
+    for d in range(n_layers):
+        block_idx = jnp.arange(n_qubits)
         if d % 2:
-            block_idx = jnp.roll(block_idx, -(s_block // 2))
-        block_idx = jnp.reshape(block_idx, (-1, s_block))
+            block_idx = jnp.roll(block_idx, -(block_size // 2))
+        block_idx = jnp.reshape(block_idx, (-1, block_size))
 
         for i in range(block_idx.shape[0]):
-            state = block(params=params[block_idx[i] + d * n_qubit],
-                          qubits=block_idx[i], state=state, n_qubit=n_qubit, rot_axis=rot_axis)
+            state = block(params=params[block_idx[i] + d * n_qubits],
+                          qubits=block_idx[i], state=state, n_qubit=n_qubits,
+                          rot_axis=rot_axis)
 
     return state
+
+
+def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
+               loss_args=None, early_stopping=False):
+    """ Training loop.
+
+    Args:
+        loss_fn: callable, loss function whose first argument must be params.
+        init_params: jnp.array, initial trainable parameter values
+        train_steps: int, total number of training steps
+        lr: float, initial learning rate
+        loss_args: dict, additional loss arguments if needed.
+        early_stopping: bool, whether to early stop if the train loss value
+            doesn't decrease further. (Not implemented yet)
+    Returns:
+        history: dict, training history.
+    """
+
+    loss_args = loss_args or {}
+    train_steps = int(train_steps)  # to guarantee an integer type value.
+    scheduler = optimizers.inverse_time_decay(lr, train_steps, decay_rate=0.5)
+    init_fun, update_fun, get_params = optimizers.adam(scheduler)
+    optimizer_state = init_fun(init_params)
+    history = {'loss': [], 'grad': []}
+    min_loss = float('inf')
+    for step in range(train_steps):
+        params = get_params(optimizer_state)
+        loss, grad = jax.value_and_grad(loss_fn)(params, **loss_args)
+        optimizer_state = update_fun(step, grad, optimizer_state)
+
+        print(f'\rStep[{step:4d}]: loss={loss:.4f}', end='')
+        wandb.log({'loss': loss.item()}, step=step)
+
+        history['loss'].append(loss)
+        history['grad'].append(grad)
+        jnp.save(expmgr.get_result_path('checkpoint_last.npy'), params)
+        if loss < min_loss:
+            jnp.save(expmgr.get_result_path('checkpoint_best.npy'), params)
+            min_loss = loss
+            print(f' | min_loss={loss:.4f}->{min_loss:.4f}')
+
+        if early_stopping:
+            # TODO(jdk): implement early stopping feature.
+            pass
+
+    jnp.savez(expmgr.get_result_path('history.npz'), **history)
+    return history
