@@ -26,6 +26,7 @@ def init(project, name, config):
         name=exp_name,
         dir=str(get_result_dir())
     )
+    wandb.config.update(config)
     save_config(config)
 
 
@@ -83,6 +84,10 @@ def save_config(config):
     config_path = get_result_path('config.yaml')
     with config_path.open('w') as f:
         yaml.safe_dump(config, f)
+
+
+def log(*args, **kwargs):
+    print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}]', *args, **kwargs)
 
 
 if __name__ == '__main__':
