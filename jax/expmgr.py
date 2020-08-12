@@ -5,6 +5,7 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
+import jax
 import wandb
 import yaml
 
@@ -16,11 +17,21 @@ DATETIME = datetime.now()
 project_name = None
 exp_name = None
 
+_verbose = 1
+
 
 def init(project, name, config):
-    global project_name, exp_name
+    global project_name, exp_name, _verbose
     project_name = project
     exp_name = name
+    if getattr(config, 'quite', False):
+        _verbose = 0
+    if not hasattr(config, 'jax_enable_x64'):
+        config.jax_enable_x64 = False
+    if config.jax_enable_x64:
+        print('Enabling jax x64 option')
+        jax.config.update("jax_enable_x64", True)
+
     wandb.init(
         project=project_name,
         name=exp_name,
@@ -87,7 +98,8 @@ def save_config(config):
 
 
 def log(*args, **kwargs):
-    print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}]', *args, **kwargs)
+    if _verbose > 0:
+        print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}]', *args, **kwargs)
 
 
 if __name__ == '__main__':
