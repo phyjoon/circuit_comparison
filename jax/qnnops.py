@@ -147,7 +147,8 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
             min_loss = loss
 
         if step % log_every == 0:
-            logging_output = OrderedDict(loss=loss.item(), lr=scheduler(step))
+            grad_norm = jnp.linalg.norm(grad).item()
+            logging_output = OrderedDict(loss=loss.item(), lr=scheduler(step), grad_norm=grad_norm)
             if monitor is not None:
                 logging_output.update(monitor(params=params))
             logging_output['min_loss'] = min_loss.item()
