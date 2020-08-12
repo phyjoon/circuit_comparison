@@ -1,6 +1,9 @@
 import jax 
 import jax.numpy as jnp
 
+from jax.config import config
+config.update("jax_enable_x64", True)
+
 ## The following codes are copied and modified from qutip.qip.gates.py.
 
 def gate_expand_1toN(U, N, target):

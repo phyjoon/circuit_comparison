@@ -8,6 +8,9 @@ import expmgr
 import qnnops
 
 
+from jax.config import config
+config.update("jax_enable_x64", True)
+
 parser = argparse.ArgumentParser('Expressibility Test')
 parser.add_argument('--n-qubits', type=int, metavar='N', required=True,
                     help='Number of qubits')

@@ -11,6 +11,9 @@ from jax.experimental import optimizers
 import expmgr
 import gate_jax as gates
 
+from jax.config import config
+config.update("jax_enable_x64", True)
+
 
 def create_target_states(n_qubits, n_samples, seed=None):
     """ Create multiple target states with given qubit number.

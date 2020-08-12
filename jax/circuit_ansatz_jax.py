@@ -3,6 +3,10 @@ import jax.numpy as jnp
 from itertools import combinations
 from gate_jax import *
 
+from jax.config import config
+config.update("jax_enable_x64", True)
+
+
 def _block(params, qubits, state, n_qubit, rot_axis='Y'):
     if rot_axis == 'Y' or rot_axis == 'y':
         rgate = ry
