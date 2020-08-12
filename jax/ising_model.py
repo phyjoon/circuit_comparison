@@ -26,16 +26,20 @@ parser.add_argument('--g', type=float, metavar='M', required=True,
 parser.add_argument('--h', type=float, metavar='M', required=True,
                     help='Longitudinal magnetic field')
 parser.add_argument('--train-steps', type=int, metavar='N', default=int(1e3),
-                    help='Number of training steps.')
+                    help='Number of training steps. (Default: 1000)')
 parser.add_argument('--lr', type=float, metavar='LR', default=0.01,
-                    help='Initial value of learning rate.')
+                    help='Initial value of learning rate. (Default: 0.01)')
 parser.add_argument('--log-every', type=int, metavar='N', default=1,
-                    help='Logging every N steps.')
+                    help='Logging every N steps. (Default: 1)')
 parser.add_argument('--seed', type=int, metavar='N', required=True,
                     help='Random seed. For reproducibility, the value is set explicitly.')
 parser.add_argument('--exp-name', type=str, metavar='NAME', default=None,
                     help='Experiment name. If None, the following format will be used as '
                          'the experiment name: Q{n_qubits}L{n_layers}_R{rot_axis}BS{block_size}')
+parser.add_argument('--jax-enable-x64', action='store_true',
+                    help='Enable jax x64 option.')
+parser.add_argument('--quite', action='store_true',
+                    help='Quite mode (No training logs)')
 args = parser.parse_args()
 
 
@@ -44,7 +48,7 @@ n_qubits, n_layers, rot_axis = args.n_qubits, args.n_layers, args.rot_axis
 block_size = args.block_size
 g, h = args.g, args.h
 if not args.exp_name:
-    args.exp_name = f'Q{n_qubits}L{n_layers}g{g}h{h}_R{rot_axis}BS{block_size}_S{seed}'
+    args.exp_name = f'Q{n_qubits}L{n_layers}g{g}h{h}_R{rot_axis}BS{block_size}_S{seed}_LR{args.lr}'
 expmgr.init(project='IsingModel', name=args.exp_name, config=args)
 
 
