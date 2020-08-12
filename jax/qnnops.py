@@ -1,4 +1,6 @@
 import itertools
+from collections import OrderedDict
+from datetime import datetime
 
 import jax
 import jax.numpy as jnp
@@ -104,7 +106,8 @@ def alternating_layer_ansatz(params, n_qubits, block_size, n_layers, rot_axis='Y
 
 
 def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
-               loss_args=None, early_stopping=False):
+               loss_args=None, early_stopping=False, monitor=None,
+               log_every=1):
     """ Training loop.
 
     Args:
@@ -115,10 +118,14 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
         loss_args: dict, additional loss arguments if needed.
         early_stopping: bool, whether to early stop if the train loss value
             doesn't decrease further. (Not implemented yet)
+        monitor: callable -> dict, monitoring function on training.
+        log_every: int, logging every N steps.
     Returns:
         params: jnp.array, optimized parameters
         history: dict, training history.
     """
+
+    assert monitor is None or callable(monitor), 'the monitoring function must be callable.'
 
     loss_args = loss_args or {}
     train_steps = int(train_steps)  # to guarantee an integer type value.
@@ -133,19 +140,51 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
         optimizer_state = update_fun(step, grad, optimizer_state)
         updated_params = get_params(optimizer_state)
 
-        print(f'\rStep[{step:4d}]: loss={loss:.4f}', end='')
-        wandb.log({'loss': loss.item()}, step=step)
-
         history['loss'].append(loss)
         history['grad'].append(grad)
-        jnp.save(expmgr.get_result_path('checkpoint_last.npy'), updated_params)
         if loss < min_loss:
             jnp.save(expmgr.get_result_path('checkpoint_best.npy'), updated_params)
             min_loss = loss
-            print(f' | min_loss={loss:.4f}->{min_loss:.4f}')
+
+        if step % log_every == 0:
+            logging_output = OrderedDict(loss=loss.item(), lr=scheduler(step))
+            if monitor is not None:
+                logging_output.update(monitor(params=params))
+            logging_output['min_loss'] = min_loss.item()
+            logging_str = ' | '.join('='.join([k, str(v)]) for k, v in logging_output.items())
+            expmgr.log(f'Step[{step:d}]: {logging_str}')
+            wandb.log(logging_output, step=step)
+            wandb.run.summary['min_loss'] = min_loss.item()
+            jnp.save(expmgr.get_result_path('checkpoint_last.npy'), updated_params)
 
         if early_stopping:
             # TODO(jdk): implement early stopping feature.
             pass
     jnp.savez(expmgr.get_result_path('history.npz'), **history)
     return get_params(optimizer_state), history
+
+
+PauliBasis = jnp.array([[[1., 0., ], [0., 1., ]],
+                        [[0., 1., ], [1., 0., ]],
+                        [[0., -1j, ], [1j, 0., ]],
+                        [[1., 0., ], [0., -1., ]]], dtype=jnp.complex128)
+
+
+def energy(hamiltonian, state):
+    """ Compute the energy level of a state under given hamiltonian.
+
+    E = <s| H |s>
+
+    Args:
+        hamiltonian: jnp.array, of shape (2 ** qubit, 2 ** qubit),
+            hamiltonian matrix
+        state: jnp.array, of shape (2 ** qubit,) a state vector
+    Returns:
+        jnp.scalar, energy
+    """
+    return jnp.real(state.T.conj() @ hamiltonian @ state)
+
+
+def fidelity(state, target_state):
+    """ Compute the fidelity between two states. """
+    return jnp.abs(state.T.conj() @ target_state) ** 2
