@@ -45,7 +45,7 @@ n_qubits, n_layers, rot_axis = args.n_qubits, args.n_layers, args.rot_axis
 block_size = args.block_size
 g, h = args.g, args.h
 if not args.exp_name:
-    args.exp_name = f'Q{n_qubits}L{n_layers}g{g}h{h}_R{rot_axis}BS{block_size}_S{seed}'
+    args.exp_name = f'Q{n_qubits}L{n_layers}g{g}h{h}_R{rot_axis}BS{block_size}_S{seed}_LR{args.lr}'
 expmgr.init(project='IsingModel', name=args.exp_name, config=args)
 
 
