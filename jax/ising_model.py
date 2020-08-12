@@ -38,7 +38,7 @@ parser.add_argument('--exp-name', type=str, metavar='NAME', default=None,
                          'the experiment name: Q{n_qubits}L{n_layers}_R{rot_axis}BS{block_size}')
 parser.add_argument('--jax-enable-x64', action='store_true',
                     help='Enable jax x64 option.')
-parser.add_argument('--quite', action='store_true',
+parser.add_argument('--quiet', action='store_true',
                     help='Quite mode (No training logs)')
 args = parser.parse_args()
 
