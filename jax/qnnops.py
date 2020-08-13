@@ -4,8 +4,6 @@ from collections import OrderedDict
 import jax
 import jax.numpy as jnp
 import qutip
-import wandb
-
 from jax.experimental import optimizers
 
 import expmgr
@@ -107,7 +105,25 @@ def alternating_layer_ansatz(params, n_qubits, block_size, n_layers, rot_axis='Y
     return state
 
 
+def get_optimizer(name, optim_args, scheduler):
+    name = name.lower()
+    if optim_args and isinstance(optim_args, str):
+        optim_args = [kv.split(':') for kv in optim_args.split(',')]
+        optim_args = {k: float(v) for k, v in optim_args}
+    optim_args = optim_args or {}
+    if name == 'adam':
+        init_fun, update_fun, get_params = optimizers.adam(scheduler, **optim_args)
+    elif name == 'nesterov':
+        if 'mass' not in optim_args:
+            optim_args['mass'] = 0.1
+        init_fun, update_fun, get_params = optimizers.nesterov(scheduler, **optim_args)
+    else:
+        raise ValueError(f'An optimizer {name} is not supported. ')
+    return init_fun, update_fun, get_params
+
+
 def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
+               optimizer_name='adam', optimizer_args=None,
                loss_args=None, early_stopping=False, monitor=None,
                log_every=1):
     """ Training loop.
@@ -122,6 +138,9 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
             doesn't decrease further. (Not implemented yet)
         monitor: callable -> dict, monitoring function on training.
         log_every: int, logging every N steps.
+        optimizer_name: str, optimizer name to be used.
+        optimizer_args: dict, custom arguments for the optimizer.
+            If None, default arguments will be used.
     Returns:
         params: jnp.array, optimized parameters
         history: dict, training history.
@@ -132,7 +151,7 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
     loss_args = loss_args or {}
     train_steps = int(train_steps)  # to guarantee an integer type value.
     scheduler = optimizers.inverse_time_decay(lr, train_steps, decay_rate=0.5)
-    init_fun, update_fun, get_params = optimizers.adam(scheduler)
+    init_fun, update_fun, get_params = get_optimizer(optimizer_name, optimizer_args, scheduler)
     optimizer_state = init_fun(init_params)
     history = {'loss': [], 'grad': []}
     min_loss = float('inf')
@@ -155,7 +174,6 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
                 logging_output.update(monitor(params=params))
             logging_output['min_loss'] = min_loss.item()
             expmgr.log(step, logging_output)
-            wandb.run.summary['min_loss'] = min_loss.item()
             expmgr.save_array('checkpoint_last.npy', updated_params)
         if early_stopping:
             # TODO(jdk): implement early stopping feature.
