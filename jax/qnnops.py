@@ -1,18 +1,17 @@
 import itertools
 from collections import OrderedDict
-from datetime import datetime
 
 import jax
 import jax.numpy as jnp
 import qutip
 import wandb
+
 from jax.experimental import optimizers
 
 import expmgr
 import gate_jax as gates
 
-from jax.config import config
-config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True)
 
 
 def create_target_states(n_qubits, n_samples, seed=None):
@@ -146,8 +145,8 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
         history['loss'].append(loss)
         history['grad'].append(grad)
         if loss < min_loss:
-            jnp.save(expmgr.get_result_path('checkpoint_best.npy'), updated_params)
             min_loss = loss
+            expmgr.save_array('checkpoint_best.npy', updated_params)
 
         if step % log_every == 0:
             grad_norm = jnp.linalg.norm(grad).item()
@@ -155,12 +154,9 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
             if monitor is not None:
                 logging_output.update(monitor(params=params))
             logging_output['min_loss'] = min_loss.item()
-            logging_str = ' | '.join('='.join([k, str(v)]) for k, v in logging_output.items())
-            expmgr.log(f'Step[{step:d}]: {logging_str}')
-            wandb.log(logging_output, step=step)
+            expmgr.log(step, logging_output)
             wandb.run.summary['min_loss'] = min_loss.item()
-            jnp.save(expmgr.get_result_path('checkpoint_last.npy'), updated_params)
-
+            expmgr.save_array('checkpoint_last.npy', updated_params)
         if early_stopping:
             # TODO(jdk): implement early stopping feature.
             pass
