@@ -20,15 +20,15 @@ parser.add_argument('--n-layers', type=int, metavar='N', required=True,
                     help='Number of alternating layers')
 parser.add_argument('--rot-axis', type=str, metavar='R', required=True,
                     choices=['x', 'y', 'z'],
-                    help='Direction of rotation gates.')
+                    help='Direction of rotation gates among (X, Y, Z).')
 parser.add_argument('--block-size', type=int, metavar='N', required=True,
                     help='Size of a block to entangle multiple qubits.')
 parser.add_argument('--train-steps', type=int, metavar='N', default=int(1e3),
-                    help='Number of training steps.')
+                    help='Number of training steps. (Default: 1000)')
 parser.add_argument('--lr', type=float, metavar='LR', default=0.01,
-                    help='Initial value of learning rate.')
+                    help='Initial value of learning rate. (Default: 0.01)')
 parser.add_argument('--log-every', type=int, metavar='N', default=1,
-                    help='Logging every N steps.')
+                    help='Logging every N steps. (Default: 1)')
 parser.add_argument('--seed-SYK', type=int, metavar='N', required=True,
                     help='Random seed for SYK coupling. For reproducibility, the value is set explicitly.')
 parser.add_argument('--seed', type=int, metavar='N', required=True,
@@ -36,6 +36,13 @@ parser.add_argument('--seed', type=int, metavar='N', required=True,
 parser.add_argument('--exp-name', type=str, metavar='NAME', default=None,
                     help='Experiment name. If None, the following format will be used as '
                          'the experiment name: Q{n_qubits}L{n_layers}_R{rot_axis}BS{block_size}')
+parser.add_argument('--optimizer-name', type=str, metavar='NAME', default='adam',
+                    help='Optimizer name. Supports: adam, nesterov, sgd (Default: adam)')
+parser.add_argument('--optimizer-args', type=str, metavar='STR', default=None,
+                    help='Additional arguments for the chosen optimizer.\n'
+                         'For instance, --optimizer-name=nesterov --optimizer-args="mass:0.1"'
+                         ' or --optimizer-name=adam --optimizer-args="eps:1e-8,b1:0.9,b2:0.999"'
+                         ' (Default: None)')
 parser.add_argument('--jax-enable-x64', action='store_true',
                     help='Enable jax x64 option.')
 parser.add_argument('--quiet', action='store_true',
@@ -123,7 +130,9 @@ def monitor(params, **kwargs):  # use kwargs for the flexibility.
 rng = jax.random.PRNGKey(seed)
 _, init_params = qnnops.initialize_circuit_params(rng, n_qubits, n_layers)
 trained_params, _ = qnnops.train_loop(
-    loss, init_params, args.train_steps, args.lr, monitor=monitor)
+    loss, init_params, args.train_steps, args.lr,
+    optimizer_name=args.optimizer_name, optimizer_args=args.optimizer_args,
+    monitor=monitor)
 
 optimized_state = circuit(trained_params)
 print('Optimized State:', optimized_state)
