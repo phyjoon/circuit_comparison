@@ -1,13 +1,15 @@
 import itertools
+from collections import OrderedDict
 
 import jax
 import jax.numpy as jnp
 import qutip
-import wandb
 from jax.experimental import optimizers
 
 import expmgr
 import gate_jax as gates
+
+jax.config.update("jax_enable_x64", True)
 
 
 def create_target_states(n_qubits, n_samples, seed=None):
@@ -103,8 +105,27 @@ def alternating_layer_ansatz(params, n_qubits, block_size, n_layers, rot_axis='Y
     return state
 
 
+def get_optimizer(name, optim_args, scheduler):
+    name = name.lower()
+    if optim_args and isinstance(optim_args, str):
+        optim_args = [kv.split(':') for kv in optim_args.split(',')]
+        optim_args = {k: float(v) for k, v in optim_args}
+    optim_args = optim_args or {}
+    if name == 'adam':
+        init_fun, update_fun, get_params = optimizers.adam(scheduler, **optim_args)
+    elif name == 'nesterov':
+        if 'mass' not in optim_args:
+            optim_args['mass'] = 0.1
+        init_fun, update_fun, get_params = optimizers.nesterov(scheduler, **optim_args)
+    else:
+        raise ValueError(f'An optimizer {name} is not supported. ')
+    return init_fun, update_fun, get_params
+
+
 def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
-               loss_args=None, early_stopping=False):
+               optimizer_name='adam', optimizer_args=None,
+               loss_args=None, early_stopping=False, monitor=None,
+               log_every=1):
     """ Training loop.
 
     Args:
@@ -115,15 +136,22 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
         loss_args: dict, additional loss arguments if needed.
         early_stopping: bool, whether to early stop if the train loss value
             doesn't decrease further. (Not implemented yet)
+        monitor: callable -> dict, monitoring function on training.
+        log_every: int, logging every N steps.
+        optimizer_name: str, optimizer name to be used.
+        optimizer_args: dict, custom arguments for the optimizer.
+            If None, default arguments will be used.
     Returns:
         params: jnp.array, optimized parameters
         history: dict, training history.
     """
 
+    assert monitor is None or callable(monitor), 'the monitoring function must be callable.'
+
     loss_args = loss_args or {}
     train_steps = int(train_steps)  # to guarantee an integer type value.
     scheduler = optimizers.inverse_time_decay(lr, train_steps, decay_rate=0.5)
-    init_fun, update_fun, get_params = optimizers.adam(scheduler)
+    init_fun, update_fun, get_params = get_optimizer(optimizer_name, optimizer_args, scheduler)
     optimizer_state = init_fun(init_params)
     history = {'loss': [], 'grad': []}
     min_loss = float('inf')
@@ -133,19 +161,48 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
         optimizer_state = update_fun(step, grad, optimizer_state)
         updated_params = get_params(optimizer_state)
 
-        print(f'\rStep[{step:4d}]: loss={loss:.4f}', end='')
-        wandb.log({'loss': loss.item()}, step=step)
-
         history['loss'].append(loss)
         history['grad'].append(grad)
-        jnp.save(expmgr.get_result_path('checkpoint_last.npy'), updated_params)
         if loss < min_loss:
-            jnp.save(expmgr.get_result_path('checkpoint_best.npy'), updated_params)
             min_loss = loss
-            print(f' | min_loss={loss:.4f}->{min_loss:.4f}')
+            expmgr.save_array('checkpoint_best.npy', updated_params)
 
+        if step % log_every == 0:
+            grad_norm = jnp.linalg.norm(grad).item()
+            logging_output = OrderedDict(loss=loss.item(), lr=scheduler(step), grad_norm=grad_norm)
+            if monitor is not None:
+                logging_output.update(monitor(params=params))
+            logging_output['min_loss'] = min_loss.item()
+            expmgr.log(step, logging_output)
+            expmgr.save_array('checkpoint_last.npy', updated_params)
         if early_stopping:
             # TODO(jdk): implement early stopping feature.
             pass
     jnp.savez(expmgr.get_result_path('history.npz'), **history)
     return get_params(optimizer_state), history
+
+
+PauliBasis = jnp.array([[[1., 0., ], [0., 1., ]],
+                        [[0., 1., ], [1., 0., ]],
+                        [[0., -1j, ], [1j, 0., ]],
+                        [[1., 0., ], [0., -1., ]]], dtype=jnp.complex128)
+
+
+def energy(hamiltonian, state):
+    """ Compute the energy level of a state under given hamiltonian.
+
+    E = <s| H |s>
+
+    Args:
+        hamiltonian: jnp.array, of shape (2 ** qubit, 2 ** qubit),
+            hamiltonian matrix
+        state: jnp.array, of shape (2 ** qubit,) a state vector
+    Returns:
+        jnp.scalar, energy
+    """
+    return jnp.real(state.T.conj() @ hamiltonian @ state)
+
+
+def fidelity(state, target_state):
+    """ Compute the fidelity between two states. """
+    return jnp.abs(state.T.conj() @ target_state) ** 2

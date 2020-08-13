@@ -5,6 +5,8 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
+import jax
+import jax.numpy as jnp
 import wandb
 import yaml
 
@@ -16,16 +18,27 @@ DATETIME = datetime.now()
 project_name = None
 exp_name = None
 
+_verbose = 1
+
 
 def init(project, name, config):
-    global project_name, exp_name
+    global project_name, exp_name, _verbose
     project_name = project
     exp_name = name
+    if getattr(config, 'quiet', False):
+        _verbose = 0
+    if not hasattr(config, 'jax_enable_x64'):
+        config.jax_enable_x64 = False
+    if config.jax_enable_x64:
+        print('Enabling jax x64 option')
+        jax.config.update("jax_enable_x64", True)
+
     wandb.init(
         project=project_name,
         name=exp_name,
         dir=str(get_result_dir())
     )
+    wandb.config.update(config)
     save_config(config)
 
 
@@ -72,17 +85,48 @@ def load_config(filepath):
     return config
 
 
-def save_config(config):
+def save_config(config, upload_to_wandb=True):
     """ Save experiment configuration as a yaml file
+
+    NOTE:
+      The configuration file name has changed into `hparams.yaml`
+      to avoid the collision with wandb's `config.yaml` file.
 
     Args:
         config: Namespace or dict, experiment configuration.
+        upload_to_wandb: bool, whether to upload wandb server.
     """
     if isinstance(config, argparse.Namespace):
         config = vars(config)
-    config_path = get_result_path('config.yaml')
+    config_path = get_result_path('hparams.yaml')
     with config_path.open('w') as f:
         yaml.safe_dump(config, f)
+    if upload_to_wandb:
+        safe_wandb_save(config_path)
+
+
+def log(step, logging_output):
+    logging_str = ' | '.join('='.join([k, str(v)]) for k, v in logging_output.items())
+    if _verbose > 0:
+        print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] Step[{step:d}]: {logging_str}')
+    wandb.log(logging_output, step=step)
+
+
+def save_array(filename, arr, upload_to_wandb=True):
+    """ Save jax array. """
+    filepath = str(get_result_path(filename))
+    jnp.save(filepath, arr)
+    if upload_to_wandb:
+        safe_wandb_save(filepath)
+
+
+def safe_wandb_save(filepath):
+    filepath = str(filepath)
+    try:
+        wandb.save(filepath)
+    except FileNotFoundError as e:
+        print(f'[WARNING] Fail to upload {filepath} to wandb server')
+        print(str(e))
 
 
 if __name__ == '__main__':

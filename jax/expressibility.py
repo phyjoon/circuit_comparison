@@ -8,19 +8,20 @@ import expmgr
 import qnnops
 
 parser = argparse.ArgumentParser('Expressibility Test')
-parser.add_argument('--n-qubits', type=int, metavar='N',
+parser.add_argument('--n-qubits', type=int, metavar='N', required=True,
                     help='Number of qubits')
-parser.add_argument('--n-layers', type=int, metavar='N',
+parser.add_argument('--n-layers', type=int, metavar='N', required=True,
                     help='Number of alternating layers')
-parser.add_argument('--rot-axis', type=str, metavar='R', choices=['x', 'y', 'z'],
+parser.add_argument('--rot-axis', type=str, metavar='R', required=True,
+                    choices=['x', 'y', 'z'],
                     help='Direction of rotation gates.')
-parser.add_argument('--block-size', type=int, metavar='N',
+parser.add_argument('--block-size', type=int, metavar='N', required=True,
                     help='Size of a block to entangle multiple qubits.')
 parser.add_argument('--train-steps', type=int, metavar='N', default=int(1e3),
                     help='Number of training steps.')
 parser.add_argument('--lr', type=float, metavar='LR', default=0.01,
                     help='Initial value of learning rate.')
-parser.add_argument('--seed', type=int, metavar='N',
+parser.add_argument('--seed', type=int, metavar='N', required=True,
                     help='Random seed. For reproducibility, the value is set explicitly.')
 parser.add_argument('--exp-name', type=str, metavar='NAME', default=None,
                     help='Experiment name. If None, the following format will be used as '

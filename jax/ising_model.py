@@ -1,6 +1,3 @@
-from itertools import combinations
-from math import factorial
-
 import argparse
 
 import jax
@@ -9,6 +6,7 @@ import wandb
 
 import expmgr
 import qnnops
+
 
 from jax.config import config
 config.update("jax_enable_x64", True)
@@ -20,29 +18,24 @@ parser.add_argument('--n-layers', type=int, metavar='N', required=True,
                     help='Number of alternating layers')
 parser.add_argument('--rot-axis', type=str, metavar='R', required=True,
                     choices=['x', 'y', 'z'],
-                    help='Direction of rotation gates among (X, Y, Z).')
+                    help='Direction of rotation gates.')
 parser.add_argument('--block-size', type=int, metavar='N', required=True,
                     help='Size of a block to entangle multiple qubits.')
+parser.add_argument('--g', type=float, metavar='M', required=True,
+                    help='Transverse magnetic field')
+parser.add_argument('--h', type=float, metavar='M', required=True,
+                    help='Longitudinal magnetic field')
 parser.add_argument('--train-steps', type=int, metavar='N', default=int(1e3),
                     help='Number of training steps. (Default: 1000)')
 parser.add_argument('--lr', type=float, metavar='LR', default=0.01,
                     help='Initial value of learning rate. (Default: 0.01)')
 parser.add_argument('--log-every', type=int, metavar='N', default=1,
                     help='Logging every N steps. (Default: 1)')
-parser.add_argument('--seed-SYK', type=int, metavar='N', required=True,
-                    help='Random seed for SYK coupling. For reproducibility, the value is set explicitly.')
 parser.add_argument('--seed', type=int, metavar='N', required=True,
                     help='Random seed. For reproducibility, the value is set explicitly.')
 parser.add_argument('--exp-name', type=str, metavar='NAME', default=None,
                     help='Experiment name. If None, the following format will be used as '
                          'the experiment name: Q{n_qubits}L{n_layers}_R{rot_axis}BS{block_size}')
-parser.add_argument('--optimizer-name', type=str, metavar='NAME', default='adam',
-                    help='Optimizer name. Supports: adam, nesterov, sgd (Default: adam)')
-parser.add_argument('--optimizer-args', type=str, metavar='STR', default=None,
-                    help='Additional arguments for the chosen optimizer.\n'
-                         'For instance, --optimizer-name=nesterov --optimizer-args="mass:0.1"'
-                         ' or --optimizer-name=adam --optimizer-args="eps:1e-8,b1:0.9,b2:0.999"'
-                         ' (Default: None)')
 parser.add_argument('--jax-enable-x64', action='store_true',
                     help='Enable jax x64 option.')
 parser.add_argument('--quiet', action='store_true',
@@ -53,42 +46,33 @@ args = parser.parse_args()
 seed = args.seed
 n_qubits, n_layers, rot_axis = args.n_qubits, args.n_layers, args.rot_axis
 block_size = args.block_size
-seed_SYK, lr = args.seed_SYK, args.lr
+g, h = args.g, args.h
 if not args.exp_name:
-    args.exp_name = f'Q{n_qubits}L{n_layers}R{rot_axis}BS{block_size} - LR{lr} - SYK{seed_SYK} - S{seed}'
-expmgr.init(project='SYK4Model', name=args.exp_name, config=args)
+    args.exp_name = f'Q{n_qubits}L{n_layers}g{g}h{h}_R{rot_axis}BS{block_size}_S{seed}_LR{args.lr}'
+expmgr.init(project='IsingModel', name=args.exp_name, config=args)
 
 
-# Construct the gamma matrices for SO(2 * n_qubits) Clifford algebra
-gamma_matrices, n_gamma = [], 2 * n_qubits
+# Construct the hamiltonian matrix of Ising model.
+ham_matrix = jnp.zeros((2 ** n_qubits, 2 ** n_qubits))
 
-for k in range(n_gamma):
-    temp = jnp.eye(1)
-    
-    for j in range(k//2):
-        temp = jnp.kron(temp, qnnops.PauliBasis[3])
-        
-    if k % 2 == 0:
-        temp = jnp.kron(temp, qnnops.PauliBasis[1])
-    else:
-        temp = jnp.kron(temp, qnnops.PauliBasis[2])
-        
-    for i in range(int(n_gamma/2) - (k//2) - 1):
-        temp = jnp.kron(temp, qnnops.PauliBasis[0])
-        
-    gamma_matrices.append(temp)
+# Nearest-neighbor interaction
+spin_coupling = jnp.kron(qnnops.PauliBasis[3], qnnops.PauliBasis[3])
 
-# Number of SYK4 interaction terms
-n_terms = int(factorial(n_gamma) / factorial(4) / factorial(n_gamma - 4)) 
+for i in range(n_qubits - 1):
+    ham_matrix -= jnp.kron(jnp.kron(jnp.eye(2 ** i), spin_coupling),
+                           jnp.eye(2 ** (n_qubits - 2 - i)))
+    ham_matrix -= jnp.kron(jnp.kron(qnnops.PauliBasis[3], jnp.eye(2 ** (n_qubits - 2))),
+                           qnnops.PauliBasis[3])  # Periodic B.C
 
-# SYK4 random coupling
-couplings = jax.random.normal(key=jax.random.PRNGKey(args.seed_SYK),
-                              shape=(n_terms, ), dtype=jnp.float64) * jnp.sqrt(6 / (n_gamma ** 3))
+# Transverse magnetic field
+for i in range(n_qubits):
+    ham_matrix -= g * jnp.kron(jnp.kron(jnp.eye(2 ** i), qnnops.PauliBasis[1]),
+                               jnp.eye(2 ** (n_qubits - 1 - i)))
 
-ham_matrix = 0
-for idx, (x, y, w, z) in enumerate(combinations(range(n_gamma), 4)):
-    ham_matrix += (couplings[idx] / 4) * jnp.linalg.multi_dot([gamma_matrices[x], gamma_matrices[y], gamma_matrices[w], gamma_matrices[z]])
-
+# Longitudinal magnetic field
+for i in range(n_qubits):
+    ham_matrix -= h * jnp.kron(jnp.kron(jnp.eye(2 ** i), qnnops.PauliBasis[3]),
+                               jnp.eye(2 ** (n_qubits - 1 - i)))
 
 jnp.save(expmgr.get_result_path('hamiltonian_matrix.npy'), ham_matrix)
 
@@ -130,9 +114,7 @@ def monitor(params, **kwargs):  # use kwargs for the flexibility.
 rng = jax.random.PRNGKey(seed)
 _, init_params = qnnops.initialize_circuit_params(rng, n_qubits, n_layers)
 trained_params, _ = qnnops.train_loop(
-    loss, init_params, args.train_steps, args.lr,
-    optimizer_name=args.optimizer_name, optimizer_args=args.optimizer_args,
-    monitor=monitor)
+    loss, init_params, args.train_steps, args.lr, monitor=monitor)
 
 optimized_state = circuit(trained_params)
 print('Optimized State:', optimized_state)
