@@ -53,7 +53,7 @@ expmgr.init(project='IsingModel', name=args.exp_name, config=args)
 
 
 # Construct the hamiltonian matrix of Ising model.
-ham_matrix = jnp.zeros((2 ** n_qubits, 2 ** n_qubits))
+ham_matrix = 0
 
 # Nearest-neighbor interaction
 spin_coupling = jnp.kron(qnnops.PauliBasis[3], qnnops.PauliBasis[3])
@@ -122,3 +122,4 @@ wandb.config.optimized_state = str(optimized_state)
 jnp.save(expmgr.get_result_path('optimized_state.npy'), optimized_state)
 
 expmgr.save_config(args)
+
