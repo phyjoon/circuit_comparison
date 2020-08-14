@@ -86,20 +86,33 @@ def loss(params):
     ansatz_state = circuit(params)
     return qnnops.energy(ham_matrix, ansatz_state) / bandwidth
 
+# Set of random seeds for parameter sampling
 rng = jax.random.PRNGKey(seed)
 
-# Set of random seeds for parameter sampling
-param_seeds = jax.random.choice(rng, sample_size * 100, shape=(sample_size,), replace=False)
-
 # Collect the norms of gradients
-grad_norms = []
+grads = []
 
-for step, param_seed in enumerate(param_seeds):
-    param_rng = jax.random.PRNGKey(param_seed)
+
+for step in range(sample_size):
+    rng, param_rng = jax.random.split(rng)
     _, init_params = qnnops.initialize_circuit_params(param_rng, n_qubits, n_layers)
-    grad_norm = jnp.linalg.norm(jax.grad(loss)(init_params)).item()
-    grad_norms.append(grad_norm)
-    wandb.log({'grad_norms': grad_norm}, step=step)
+    grads.append(jax.grad(loss)(init_params))
 
-wandb.grad_norms_mean = str(jnp.mean(jnp.array(grad_norms)))
-wandb.grad_norms_var = str(jnp.var(jnp.array(grad_norms)))
+grads = jnp.vstack(grads)
+
+grads_mean, grads_var, grads_norm = jnp.mean(grads, axis=0), jnp.var(grads, axis=0), jnp.linalg.norm(grads, axis=1)
+expmgr.save_array(expmgr.get_result_path('grads_mean.npy'), grads_mean)
+expmgr.save_array(expmgr.get_result_path('grads_var.npy'), grads_var)
+expmgr.save_array(expmgr.get_result_path('grads_norm.npy'), grads_norm)
+
+wandb.config.grads_mean = str(grads_mean)
+wandb.config.grads_var = str(grads_var)
+wandb.config.grads_norm = str(grads_norm)
+
+
+wandb.log({'means_mean': jnp.mean(grads_mean).item(),
+           'means_var': jnp.var(grads_mean).item(),
+           'vars_mean': jnp.mean(grads_var).item(),
+           'vars_var': jnp.var(grads_var).item(),  
+           'norms_mean': jnp.mean(grads_norm).item(),
+           'norms_var': jnp.var(grads_norm).item()})
