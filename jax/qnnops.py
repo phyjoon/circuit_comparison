@@ -150,7 +150,7 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
 
     loss_args = loss_args or {}
     train_steps = int(train_steps)  # to guarantee an integer type value.
-    scheduler = optimizers.inverse_time_decay(lr, train_steps, decay_rate=0.5)
+    scheduler = optimizers.constant(lr)  # use a constant learning rate
     init_fun, update_fun, get_params = get_optimizer(optimizer_name, optimizer_args, scheduler)
     optimizer_state = init_fun(init_params)
     history = {'loss': [], 'grad': []}
