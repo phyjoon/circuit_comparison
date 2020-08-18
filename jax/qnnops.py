@@ -153,7 +153,7 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
     scheduler = optimizers.constant(lr)  # use a constant learning rate
     init_fun, update_fun, get_params = get_optimizer(optimizer_name, optimizer_args, scheduler)
     optimizer_state = init_fun(init_params)
-    history = {'loss': [], 'grad': []}
+    history = {'loss': [], 'grad': [], 'params': []}
     min_loss = float('inf')
     for step in range(train_steps):
         params = get_params(optimizer_state)
@@ -163,6 +163,7 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
 
         history['loss'].append(loss)
         history['grad'].append(grad)
+        history['params'].append(params)
         if loss < min_loss:
             min_loss = loss
             expmgr.save_array('checkpoint_best.npy', updated_params)
