@@ -1,5 +1,7 @@
 import itertools
 from collections import OrderedDict
+import pickle
+from pathlib import Path
 
 import jax
 import jax.numpy as jnp
@@ -125,7 +127,7 @@ def get_optimizer(name, optim_args, scheduler):
 def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
                optimizer_name='adam', optimizer_args=None,
                loss_args=None, early_stopping=False, monitor=None,
-               log_every=1):
+               log_every=1, checkpoint_path=None):
     """ Training loop.
 
     Args:
@@ -133,14 +135,15 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
         init_params: jnp.array, initial trainable parameter values
         train_steps: int, total number of training steps
         lr: float, initial learning rate
+        optimizer_name: str, optimizer name to be used.
+        optimizer_args: dict, custom arguments for the optimizer.
+            If None, default arguments will be used.
         loss_args: dict, additional loss arguments if needed.
         early_stopping: bool, whether to early stop if the train loss value
             doesn't decrease further. (Not implemented yet)
         monitor: callable -> dict, monitoring function on training.
         log_every: int, logging every N steps.
-        optimizer_name: str, optimizer name to be used.
-        optimizer_args: dict, custom arguments for the optimizer.
-            If None, default arguments will be used.
+        checkpoint_path: str, a checkpoint file path to resume.
     Returns:
         params: jnp.array, optimized parameters
         history: dict, training history.
@@ -152,10 +155,15 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
     train_steps = int(train_steps)  # to guarantee an integer type value.
     scheduler = optimizers.constant(lr)  # use a constant learning rate
     init_fun, update_fun, get_params = get_optimizer(optimizer_name, optimizer_args, scheduler)
-    optimizer_state = init_fun(init_params)
-    history = {'loss': [], 'grad': [], 'params': []}
-    min_loss = float('inf')
-    for step in range(train_steps):
+    if checkpoint_path:
+        start_step, optimizer_state, history = load_checkpoint(checkpoint_path)
+        min_loss = jnp.hstack(history['loss']).min()
+    else:
+        start_step = 0
+        optimizer_state = init_fun(init_params)
+        history = {'loss': [], 'grad': []}
+        min_loss = float('inf')
+    for step in range(start_step, train_steps):
         params = get_params(optimizer_state)
         loss, grad = jax.value_and_grad(loss_fn)(params, **loss_args)
         optimizer_state = update_fun(step, grad, optimizer_state)
@@ -166,7 +174,8 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
         history['params'].append(params)
         if loss < min_loss:
             min_loss = loss
-            expmgr.save_array('checkpoint_best.npy', updated_params)
+            expmgr.save_array('params_best.npy', updated_params)
+            save_checkpoint('checkpoint_best.pkl', step, optimizer_state, history)
 
         if step % log_every == 0:
             grad_norm = jnp.linalg.norm(grad).item()
@@ -175,12 +184,34 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
                 logging_output.update(monitor(params=params))
             logging_output['min_loss'] = min_loss.item()
             expmgr.log(step, logging_output)
-            expmgr.save_array('checkpoint_last.npy', updated_params)
+            expmgr.save_array('params_last.npy', updated_params)
+            save_checkpoint('checkpoint_last.pkl', step, optimizer_state, history)
         if early_stopping:
             # TODO(jdk): implement early stopping feature.
             pass
     jnp.savez(expmgr.get_result_path('history.npz'), **history)
     return get_params(optimizer_state), history
+
+
+def save_checkpoint(filename, step, optimizer_state, history):
+    """ Save a training checkpoint """
+    pytree = optimizers.unpack_optimizer_state(optimizer_state)
+    checkpoint_path = expmgr.get_result_path(filename)
+    with checkpoint_path.open('wb') as f:
+        pickle.dump(dict(step=step, state=pytree, history=history), f)
+    return checkpoint_path
+
+
+def load_checkpoint(filepath):
+    """ Load a training checkpoint """
+    if not isinstance(filepath, Path):
+        filepath = Path(filepath)
+    with filepath.open('rb') as f:
+        checkpoint = pickle.load(f)
+    step = checkpoint['step']
+    optimizer_state = optimizers.pack_optimizer_state(checkpoint['state'])
+    history = checkpoint['history']
+    return step + 1, optimizer_state, history
 
 
 PauliBasis = jnp.array([[[1., 0., ], [0., 1., ]],
