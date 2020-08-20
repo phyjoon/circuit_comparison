@@ -2,13 +2,11 @@ import argparse
 
 import jax
 import jax.numpy as jnp
-import wandb
+from jax.config import config
 
 import expmgr
 import qnnops
 
-
-from jax.config import config
 config.update("jax_enable_x64", True)
 
 parser = argparse.ArgumentParser('Expressibility Test')
@@ -76,7 +74,7 @@ for i in range(n_qubits):
     ham_matrix -= h * jnp.kron(jnp.kron(jnp.eye(2 ** i), qnnops.PauliBasis[3]),
                                jnp.eye(2 ** (n_qubits - 1 - i)))
 
-jnp.save(expmgr.get_result_path('hamiltonian_matrix.npy'), ham_matrix)
+expmgr.save_array('hamiltonian_matrix.npy', ham_matrix, upload_to_wandb=False)
 
 eigval, eigvec = jnp.linalg.eigh(ham_matrix)
 eigvec = eigvec.T  # Transpose such that eigvec[i] is an eigenvector, rather than eigenftn[:, i]
@@ -84,14 +82,14 @@ ground_state = eigvec[0]
 next_to_ground_state = eigvec[1]
 
 print("The lowest eigenvalues (energy) and corresponding eigenvectors (state)")
-print(f'Ground state energy={eigval[0]}, state={ground_state}')
-print(f'The next-to-ground state energy={eigval[1]}, state={next_to_ground_state}')
-for i in range(2, min(5, len(eigval))):
+for i in range(min(5, len(eigval))):
     print(f'| {i}-th state energy={eigval[i]:.4f}')
     print(f'| {i}-th state vector={eigvec[i]}')
-wandb.config.eigenvalues = str(eigval)
-wandb.config.ground_state = str(ground_state)
-wandb.config.next_to_ground_state = str(next_to_ground_state)
+expmgr.log_array(
+    eigenvalues=eigval,
+    ground_state=ground_state,
+    next_to_ground_state=next_to_ground_state,
+)
 
 
 def circuit(params):
@@ -120,9 +118,8 @@ trained_params, _ = qnnops.train_loop(
     checkpoint_path=args.checkpoint_path)
 
 optimized_state = circuit(trained_params)
-print('Optimized State:', optimized_state)
-wandb.config.optimized_state = str(optimized_state)
-jnp.save(expmgr.get_result_path('optimized_state.npy'), optimized_state)
+expmgr.log_array(optimized_state=optimized_state)
+expmgr.save_array('optimized_state.npy', optimized_state)
 
 expmgr.save_config(args)
 

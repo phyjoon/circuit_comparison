@@ -1,8 +1,6 @@
 import argparse
 
 import jax
-import jax.numpy as jnp
-import wandb
 
 import expmgr
 import qnnops
@@ -26,6 +24,8 @@ parser.add_argument('--seed', type=int, metavar='N', required=True,
 parser.add_argument('--exp-name', type=str, metavar='NAME', default=None,
                     help='Experiment name. If None, the following format will be used as '
                          'the experiment name: Q{n_qubits}L{n_layers}_R{rot_axis}BS{block_size}')
+parser.add_argument('--checkpoint-path', type=str, metavar='PATH', default=None,
+                    help='A checkpoint file path to resume')
 args = parser.parse_args()
 seed = args.seed
 n_qubits, n_layers, rot_axis = args.n_qubits, args.n_layers, args.rot_axis
@@ -34,9 +34,8 @@ exp_name = args.exp_name or f'Q{n_qubits}L{n_layers}_R{rot_axis}BS{block_size}_S
 expmgr.init(project='expressibility', name=exp_name, config=args)
 
 target_state = qnnops.create_target_states(n_qubits, 1, seed=seed)
-print('Target State:', target_state)
-wandb.log({'target_state': str(target_state)})
-jnp.save(expmgr.get_result_path('target_state.npy'), target_state)
+expmgr.log_array(target_state=target_state)
+expmgr.save_array('target_state.npy', target_state)
 
 
 def circuit(params):
@@ -51,11 +50,12 @@ def loss_fn(params):
 
 rng = jax.random.PRNGKey(seed)
 _, init_params = qnnops.initialize_circuit_params(rng, n_qubits, n_layers)
-trained_params, _ = qnnops.train_loop(loss_fn, init_params, args.train_steps, args.lr)
+trained_params, _ = qnnops.train_loop(
+    loss_fn, init_params, args.train_steps, args.lr,
+    checkpoint_path=args.checkpoint_path)
 
 optimized_state = circuit(trained_params)
-print('Optimized State:', optimized_state)
-wandb.log({'optimized_state': str(optimized_state)})
-jnp.save(expmgr.get_result_path('optimized_state.npy'), optimized_state)
+expmgr.log_array(optimized_state=optimized_state)
+expmgr.save_array('optimized_state.npy', optimized_state)
 
 expmgr.save_config(args)

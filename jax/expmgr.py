@@ -129,6 +129,12 @@ def safe_wandb_save(filepath):
         print(str(e))
 
 
+def log_array(**kwargs):
+    for k, v in kwargs.items():
+        print(k, str(v))
+        wandb.config.__setattr__(k, str(v))
+
+
 if __name__ == '__main__':
     fp = get_result_path('nnnmm/asdf.png')
     print(fp)
