@@ -162,33 +162,41 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
         optimizer_state = init_fun(init_params)
         history = {'loss': [], 'grad': [], 'params': []}
         min_loss = float('inf')
-    for step in range(start_step, train_steps):
-        params = get_params(optimizer_state)
-        loss, grad = jax.value_and_grad(loss_fn)(params, **loss_args)
-        optimizer_state = update_fun(step, grad, optimizer_state)
-        updated_params = get_params(optimizer_state)
 
-        history['loss'].append(loss)
-        history['grad'].append(grad)
-        history['params'].append(params)
-        if loss < min_loss:
-            min_loss = loss
-            expmgr.save_array('params_best.npy', updated_params)
-            save_checkpoint('checkpoint_best.pkl', step, optimizer_state, history)
+    try:
+        for step in range(start_step, train_steps):
+            params = get_params(optimizer_state)
+            loss, grad = jax.value_and_grad(loss_fn)(params, **loss_args)
+            optimizer_state = update_fun(step, grad, optimizer_state)
+            updated_params = get_params(optimizer_state)
 
-        if step % log_every == 0:
-            grad_norm = jnp.linalg.norm(grad).item()
-            logging_output = OrderedDict(loss=loss.item(), lr=scheduler(step), grad_norm=grad_norm)
-            if monitor is not None:
-                logging_output.update(monitor(params=params))
-            logging_output['min_loss'] = min_loss.item()
-            expmgr.log(step, logging_output)
-            expmgr.save_array('params_last.npy', updated_params)
-            save_checkpoint('checkpoint_last.pkl', step, optimizer_state, history)
-        if early_stopping:
-            # TODO(jdk): implement early stopping feature.
-            pass
-    jnp.savez(expmgr.get_result_path('history.npz'), **history)
+            history['loss'].append(loss)
+            history['grad'].append(grad)
+            history['params'].append(params)
+            if loss < min_loss:
+                min_loss = loss
+                expmgr.save_array('params_best.npy', updated_params)
+                save_checkpoint('checkpoint_best.pkl', step, optimizer_state, history)
+
+            if step % log_every == 0:
+                grad_norm = jnp.linalg.norm(grad).item()
+                logging_output = OrderedDict(loss=loss.item(), lr=scheduler(step), grad_norm=grad_norm)
+                if monitor is not None:
+                    logging_output.update(monitor(params=params))
+                logging_output['min_loss'] = min_loss.item()
+                expmgr.log(step, logging_output)
+                expmgr.save_array('params_last.npy', updated_params)
+                save_checkpoint('checkpoint_last.pkl', step, optimizer_state, history)
+            if early_stopping:
+                # TODO(jdk): implement early stopping feature.
+                pass
+    except Exception as e:
+        print(e)
+        print('Saving history object...')
+        jnp.savez(expmgr.get_result_path('history.npz'), **history)
+        raise e
+    else:
+        jnp.savez(expmgr.get_result_path('history.npz'), **history)
     return get_params(optimizer_state), history
 
 
