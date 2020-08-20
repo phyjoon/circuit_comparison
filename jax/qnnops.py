@@ -123,8 +123,29 @@ def get_optimizer(name, optim_args, scheduler):
     return init_fun, update_fun, get_params
 
 
+def supported_schedulers():
+    return 'constant', 'inverse_time_decay', 'exponential_decay'
+
+
+def get_scheduler(lr, train_steps, name='constant'):
+    name = name.lower()
+    if name == 'constant':
+        scheduler = optimizers.constant(lr)
+    elif name == 'inverse_time_decay':
+        decay_steps = int(train_steps // 5)
+        scheduler = optimizers.inverse_time_decay(lr, decay_steps, 2)
+    elif name == 'exponential_decay':
+        decay_steps = int(train_steps // 3)
+        scheduler = optimizers.exponential_decay(lr, decay_steps, 0.3)
+    else:
+        raise ValueError(f'Not supported scheduler {name}.'
+                         f'Supported schedulers={supported_schedulers()}')
+    return scheduler
+
+
 def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
                optimizer_name='adam', optimizer_args=None,
+               scheduler_name='constant',
                loss_args=None, early_stopping=False, monitor=None,
                log_every=1, checkpoint_path=None):
     """ Training loop.
@@ -137,6 +158,7 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
         optimizer_name: str, optimizer name to be used.
         optimizer_args: dict, custom arguments for the optimizer.
             If None, default arguments will be used.
+        scheduler_name: str, scheduler name.
         loss_args: dict, additional loss arguments if needed.
         early_stopping: bool, whether to early stop if the train loss value
             doesn't decrease further. (Not implemented yet)
@@ -152,7 +174,7 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
 
     loss_args = loss_args or {}
     train_steps = int(train_steps)  # to guarantee an integer type value.
-    scheduler = optimizers.constant(lr)  # use a constant learning rate
+    scheduler = get_scheduler(lr, train_steps, scheduler_name)
     init_fun, update_fun, get_params = get_optimizer(optimizer_name, optimizer_args, scheduler)
     if checkpoint_path:
         start_step, optimizer_state, history = load_checkpoint(checkpoint_path)

@@ -34,6 +34,16 @@ parser.add_argument('--seed', type=int, metavar='N', required=True,
 parser.add_argument('--exp-name', type=str, metavar='NAME', default=None,
                     help='Experiment name. If None, the following format will be used as '
                          'the experiment name: Q{n_qubits}L{n_layers}_R{rot_axis}BS{block_size}')
+parser.add_argument('--optimizer-name', type=str, metavar='NAME', default='adam',
+                    help='Optimizer name. Supports: adam, nesterov, sgd (Default: adam)')
+parser.add_argument('--optimizer-args', type=str, metavar='STR', default=None,
+                    help='Additional arguments for the chosen optimizer.\n'
+                         'For instance, --optimizer-name=nesterov --optimizer-args="mass:0.1"'
+                         ' or --optimizer-name=adam --optimizer-args="eps:1e-8,b1:0.9,b2:0.999"'
+                         ' (Default: None)')
+parser.add_argument('--scheduler-name', type=str, metavar='NAME', default='constant',
+                    help=f'Scheduler name. Supports: {qnnops.supported_schedulers()} '
+                         f'(Default: constant)')
 parser.add_argument('--checkpoint-path', type=str, metavar='PATH', default=None,
                     help='A checkpoint file path to resume')
 parser.add_argument('--jax-enable-x64', action='store_true',
@@ -114,7 +124,10 @@ def monitor(params, **kwargs):  # use kwargs for the flexibility.
 rng = jax.random.PRNGKey(seed)
 _, init_params = qnnops.initialize_circuit_params(rng, n_qubits, n_layers)
 trained_params, _ = qnnops.train_loop(
-    loss, init_params, args.train_steps, args.lr, monitor=monitor,
+    loss, init_params, args.train_steps, args.lr,
+    optimizer_name=args.optimizer_name, optimizer_args=args.optimizer_args,
+    scheduler_name=args.scheduler_name,
+    monitor=monitor,
     checkpoint_path=args.checkpoint_path)
 
 optimized_state = circuit(trained_params)
