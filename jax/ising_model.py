@@ -36,6 +36,8 @@ parser.add_argument('--seed', type=int, metavar='N', required=True,
 parser.add_argument('--exp-name', type=str, metavar='NAME', default=None,
                     help='Experiment name. If None, the following format will be used as '
                          'the experiment name: Q{n_qubits}L{n_layers}_R{rot_axis}BS{block_size}')
+parser.add_argument('--checkpoint-path', type=str, metavar='PATH', default=None,
+                    help='A checkpoint file path to resume')
 parser.add_argument('--jax-enable-x64', action='store_true',
                     help='Enable jax x64 option.')
 parser.add_argument('--quiet', action='store_true',
@@ -114,7 +116,8 @@ def monitor(params, **kwargs):  # use kwargs for the flexibility.
 rng = jax.random.PRNGKey(seed)
 _, init_params = qnnops.initialize_circuit_params(rng, n_qubits, n_layers)
 trained_params, _ = qnnops.train_loop(
-    loss, init_params, args.train_steps, args.lr, monitor=monitor)
+    loss, init_params, args.train_steps, args.lr, monitor=monitor,
+    checkpoint_path=args.checkpoint_path)
 
 optimized_state = circuit(trained_params)
 print('Optimized State:', optimized_state)

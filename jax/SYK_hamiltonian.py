@@ -43,6 +43,8 @@ parser.add_argument('--optimizer-args', type=str, metavar='STR', default=None,
                          'For instance, --optimizer-name=nesterov --optimizer-args="mass:0.1"'
                          ' or --optimizer-name=adam --optimizer-args="eps:1e-8,b1:0.9,b2:0.999"'
                          ' (Default: None)')
+parser.add_argument('--checkpoint-path', type=str, metavar='PATH', default=None,
+                    help='A checkpoint file path to resume')
 parser.add_argument('--jax-enable-x64', action='store_true',
                     help='Enable jax x64 option.')
 parser.add_argument('--quiet', action='store_true',
@@ -132,7 +134,7 @@ _, init_params = qnnops.initialize_circuit_params(rng, n_qubits, n_layers)
 trained_params, _ = qnnops.train_loop(
     loss, init_params, args.train_steps, args.lr,
     optimizer_name=args.optimizer_name, optimizer_args=args.optimizer_args,
-    monitor=monitor)
+    monitor=monitor, checkpoint_path=args.checkpoint_path)
 
 optimized_state = circuit(trained_params)
 print('Optimized State:', optimized_state)
