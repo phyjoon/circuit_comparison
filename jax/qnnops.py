@@ -292,8 +292,8 @@ def ising_hamiltonian(n_qubits, g, h):
     for i in range(n_qubits - 1):
         ham_matrix -= jnp.kron(jnp.kron(jnp.eye(2 ** i), spin_coupling),
                                jnp.eye(2 ** (n_qubits - 2 - i)))
-        ham_matrix -= jnp.kron(jnp.kron(PauliBasis[3], jnp.eye(2 ** (n_qubits - 2))),
-                               PauliBasis[3])  # Periodic B.C
+    ham_matrix -= jnp.kron(jnp.kron(PauliBasis[3], jnp.eye(2 ** (n_qubits - 2))),
+                           PauliBasis[3])  # Periodic B.C
 
     # Transverse magnetic field
     for i in range(n_qubits):
