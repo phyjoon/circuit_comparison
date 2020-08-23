@@ -1,10 +1,11 @@
 import itertools
-from collections import OrderedDict
 import pickle
+from collections import OrderedDict
 from pathlib import Path
 
 import jax
 import jax.numpy as jnp
+import numpy as onp
 import qutip
 from jax.experimental import optimizers
 
@@ -267,3 +268,40 @@ def energy(hamiltonian, state):
 def fidelity(state, target_state):
     """ Compute the fidelity between two states. """
     return jnp.abs(state.T.conj() @ target_state) ** 2
+
+
+def bandwidth(ham_matrix):
+    eigval, _ = onp.linalg.eigh(ham_matrix)
+    bandwidth = jnp.real(jnp.max(eigval) - jnp.min(eigval))
+    return bandwidth
+
+
+def ising_hamiltonian(n_qubits, g, h):
+    """ Construct the hamiltonian matrix of Ising model.
+
+    Args:
+        n_qubits: int, Number of qubits
+        g: float, Transverse magnetic field
+        h: float, Longitudinal magnetic field
+    """
+    ham_matrix = 0
+
+    # Nearest-neighbor interaction
+    spin_coupling = jnp.kron(PauliBasis[3], PauliBasis[3])
+
+    for i in range(n_qubits - 1):
+        ham_matrix -= jnp.kron(jnp.kron(jnp.eye(2 ** i), spin_coupling),
+                               jnp.eye(2 ** (n_qubits - 2 - i)))
+    ham_matrix -= jnp.kron(jnp.kron(PauliBasis[3], jnp.eye(2 ** (n_qubits - 2))),
+                           PauliBasis[3])  # Periodic B.C
+
+    # Transverse magnetic field
+    for i in range(n_qubits):
+        ham_matrix -= g * jnp.kron(jnp.kron(jnp.eye(2 ** i), PauliBasis[1]),
+                                   jnp.eye(2 ** (n_qubits - 1 - i)))
+
+    # Longitudinal magnetic field
+    for i in range(n_qubits):
+        ham_matrix -= h * jnp.kron(jnp.kron(jnp.eye(2 ** i), PauliBasis[3]),
+                                   jnp.eye(2 ** (n_qubits - 1 - i)))
+    return ham_matrix

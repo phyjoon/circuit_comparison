@@ -102,9 +102,9 @@ for step in range(sample_size):
 grads = jnp.vstack(grads)
 
 grads_mean, grads_var, grads_norm = jnp.mean(grads, axis=0), jnp.var(grads, axis=0), jnp.linalg.norm(grads, axis=1)
-expmgr.save_array(expmgr.get_result_path('grads_mean.npy'), grads_mean)
-expmgr.save_array(expmgr.get_result_path('grads_var.npy'), grads_var)
-expmgr.save_array(expmgr.get_result_path('grads_norm.npy'), grads_norm)
+expmgr.save_array('grads_mean.npy', grads_mean)
+expmgr.save_array('grads_var.npy', grads_var)
+expmgr.save_array('grads_norm.npy', grads_norm)
 
 wandb.config.grads_mean = str(grads_mean)
 wandb.config.grads_var = str(grads_var)
