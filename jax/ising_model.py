@@ -2,13 +2,11 @@ import argparse
 
 import jax
 import jax.numpy as jnp
-import wandb
+from jax.config import config
 
 import expmgr
 import qnnops
 
-
-from jax.config import config
 config.update("jax_enable_x64", True)
 
 parser = argparse.ArgumentParser('Expressibility Test')
@@ -36,6 +34,16 @@ parser.add_argument('--seed', type=int, metavar='N', required=True,
 parser.add_argument('--exp-name', type=str, metavar='NAME', default=None,
                     help='Experiment name. If None, the following format will be used as '
                          'the experiment name: Q{n_qubits}L{n_layers}_R{rot_axis}BS{block_size}')
+parser.add_argument('--optimizer-name', type=str, metavar='NAME', default='adam',
+                    help='Optimizer name. Supports: adam, nesterov, sgd (Default: adam)')
+parser.add_argument('--optimizer-args', type=str, metavar='STR', default=None,
+                    help='Additional arguments for the chosen optimizer.\n'
+                         'For instance, --optimizer-name=nesterov --optimizer-args="mass:0.1"'
+                         ' or --optimizer-name=adam --optimizer-args="eps:1e-8,b1:0.9,b2:0.999"'
+                         ' (Default: None)')
+parser.add_argument('--scheduler-name', type=str, metavar='NAME', default='constant',
+                    help=f'Scheduler name. Supports: {qnnops.supported_schedulers()} '
+                         f'(Default: constant)')
 parser.add_argument('--checkpoint-path', type=str, metavar='PATH', default=None,
                     help='A checkpoint file path to resume')
 parser.add_argument('--jax-enable-x64', action='store_true',
@@ -76,7 +84,7 @@ for i in range(n_qubits):
     ham_matrix -= h * jnp.kron(jnp.kron(jnp.eye(2 ** i), qnnops.PauliBasis[3]),
                                jnp.eye(2 ** (n_qubits - 1 - i)))
 
-jnp.save(expmgr.get_result_path('hamiltonian_matrix.npy'), ham_matrix)
+expmgr.save_array('hamiltonian_matrix.npy', ham_matrix, upload_to_wandb=False)
 
 eigval, eigvec = jnp.linalg.eigh(ham_matrix)
 eigvec = eigvec.T  # Transpose such that eigvec[i] is an eigenvector, rather than eigenftn[:, i]
@@ -84,14 +92,14 @@ ground_state = eigvec[0]
 next_to_ground_state = eigvec[1]
 
 print("The lowest eigenvalues (energy) and corresponding eigenvectors (state)")
-print(f'Ground state energy={eigval[0]}, state={ground_state}')
-print(f'The next-to-ground state energy={eigval[1]}, state={next_to_ground_state}')
-for i in range(2, min(5, len(eigval))):
+for i in range(min(5, len(eigval))):
     print(f'| {i}-th state energy={eigval[i]:.4f}')
     print(f'| {i}-th state vector={eigvec[i]}')
-wandb.config.eigenvalues = str(eigval)
-wandb.config.ground_state = str(ground_state)
-wandb.config.next_to_ground_state = str(next_to_ground_state)
+expmgr.log_array(
+    eigenvalues=eigval,
+    ground_state=ground_state,
+    next_to_ground_state=next_to_ground_state,
+)
 
 
 def circuit(params):
@@ -116,13 +124,15 @@ def monitor(params, **kwargs):  # use kwargs for the flexibility.
 rng = jax.random.PRNGKey(seed)
 _, init_params = qnnops.initialize_circuit_params(rng, n_qubits, n_layers)
 trained_params, _ = qnnops.train_loop(
-    loss, init_params, args.train_steps, args.lr, monitor=monitor,
+    loss, init_params, args.train_steps, args.lr,
+    optimizer_name=args.optimizer_name, optimizer_args=args.optimizer_args,
+    scheduler_name=args.scheduler_name,
+    monitor=monitor,
     checkpoint_path=args.checkpoint_path)
 
 optimized_state = circuit(trained_params)
-print('Optimized State:', optimized_state)
-wandb.config.optimized_state = str(optimized_state)
-jnp.save(expmgr.get_result_path('optimized_state.npy'), optimized_state)
+expmgr.log_array(optimized_state=optimized_state)
+expmgr.save_array('optimized_state.npy', optimized_state)
 
 expmgr.save_config(args)
 
