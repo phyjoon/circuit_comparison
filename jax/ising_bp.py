@@ -1,0 +1,90 @@
+import argparse
+
+import jax
+import jax.numpy as jnp
+import wandb
+from jax.config import config
+from tqdm import tqdm
+
+import expmgr
+import qnnops
+
+config.update("jax_enable_x64", True)
+
+parser = argparse.ArgumentParser('Barren Plateau Test for Ising Model')
+parser.add_argument('--n-qubits', type=int, metavar='N', required=True,
+                    help='Number of qubits')
+parser.add_argument('--max-n-layers', type=int, metavar='N', required=True,
+                    help='Maximum number of alternating layers to explore.')
+parser.add_argument('--rot-axis', type=str, metavar='R', required=True,
+                    choices=['x', 'y', 'z'],
+                    help='Direction of rotation gates.')
+parser.add_argument('--sample-size', type=int, metavar='N', required=True,
+                    help='Size of sample set of gradients.')
+# Disable block_size option because we have considered the case when n_qubits == block_size.
+# parser.add_argument('--block-size', type=int, metavar='N', required=True,
+#                     help='Size of a block to entangle multiple qubits.')
+parser.add_argument('--g', type=float, metavar='M', required=True,
+                    help='Transverse magnetic field')
+parser.add_argument('--h', type=float, metavar='M', required=True,
+                    help='Longitudinal magnetic field')
+parser.add_argument('--seed', type=int, metavar='M', required=True,
+                    help='Random seed')
+parser.add_argument('--jax-enable-x64', action='store_true',
+                    help='Enable jax x64 option.')
+parser.add_argument('--exp-name', type=str, metavar='NAME', default=None,
+                    help='Experiment name. If None, the default format will be used.')
+args = parser.parse_args()
+
+seed = args.seed
+n_qubits, max_n_layers, rot_axis = args.n_qubits, args.max_n_layers, args.rot_axis
+block_size = args.n_qubits
+sample_size = args.sample_size
+g, h = args.g, args.h
+
+if not args.exp_name:
+    args.exp_name = f'IsingBP_Q{n_qubits}R{rot_axis}BS{block_size}_g{g}h{h}_S{seed}_SN{sample_size}'
+expmgr.init(project='IsingBP', name=args.exp_name, config=args)
+
+# Construct the hamiltonian matrix of Ising model.
+ham_matrix = qnnops.ising_hamiltonian(n_qubits, g, h)
+bandwidth = qnnops.bandwidth(ham_matrix)
+
+print(f'Bandwidth={bandwidth}')
+wandb.config.bandwidth = str(bandwidth)
+
+
+rng = jax.random.PRNGKey(seed)  # Set of random seeds for parameter sampling
+
+M = int(max_n_layers / n_qubits)
+for i in range(1, M + 1):
+    n_layers = i * n_qubits
+    print(f'{n_qubits} Qubits & {n_layers} Layers ({i}/{M})')
+
+    def loss(_params):
+        ansatz_state = qnnops.alternating_layer_ansatz(
+            _params, n_qubits, block_size, n_layers, rot_axis)
+        return qnnops.energy(ham_matrix, ansatz_state) / bandwidth
+
+    # Collect the norms of gradients
+    params, grads = [], []
+    for step in tqdm(range(sample_size)):
+        rng, param_rng = jax.random.split(rng)
+        _, param = qnnops.initialize_circuit_params(param_rng, n_qubits, n_layers)
+        grad = jax.grad(loss)(param)
+        params.append(param)
+        grads.append(grad)
+
+    params = jnp.vstack(params)
+    grads = jnp.vstack(grads)
+    grad_norms = jnp.linalg.norm(grads, axis=1)
+    wandb.log(
+        dict(
+            gradients=wandb.Histogram(grads),
+            grad_norm=wandb.Histogram(grad_norms)
+        ),
+        step=n_layers
+    )
+    suffix = f'Q{n_qubits}L{n_layers}R{rot_axis}BS{block_size}_g{g}h{h}'
+    expmgr.save_array(f'params_{suffix}.npy', params)
+    expmgr.save_array(f'grads_{suffix}.npy', grads)
