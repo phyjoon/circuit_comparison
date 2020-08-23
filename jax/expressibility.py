@@ -11,19 +11,19 @@ parser.add_argument('--n-qubits', type=int, metavar='N', required=True,
 parser.add_argument('--n-layers', type=int, metavar='N', required=True,
                     help='Number of alternating layers')
 parser.add_argument('--rot-axis', type=str, metavar='R', required=True,
-                    choices=['x', 'y', 'z'],
+                    default='y', choices=['x', 'y', 'z'],
                     help='Direction of rotation gates.')
 parser.add_argument('--block-size', type=int, metavar='N', required=True,
                     help='Size of a block to entangle multiple qubits.')
 parser.add_argument('--train-steps', type=int, metavar='N', default=int(1e3),
                     help='Number of training steps.')
-parser.add_argument('--lr', type=float, metavar='LR', default=0.01,
+parser.add_argument('--lr', type=float, metavar='LR', default=0.05,
                     help='Initial value of learning rate.')
 parser.add_argument('--seed', type=int, metavar='N', required=True,
                     help='Random seed. For reproducibility, the value is set explicitly.')
 parser.add_argument('--exp-name', type=str, metavar='NAME', default=None,
                     help='Experiment name. If None, the following format will be used as '
-                         'the experiment name: Q{n_qubits}L{n_layers}_R{rot_axis}BS{block_size}')
+                         'the experiment name: Q{n_qubits}L{n_layers}R{rot_axis}BS{block_size} - S{seed} - LR{args.lr}')
 parser.add_argument('--optimizer-name', type=str, metavar='NAME', default='adam',
                     help='Optimizer name. Supports: adam, nesterov, sgd (Default: adam)')
 parser.add_argument('--optimizer-args', type=str, metavar='STR', default=None,
@@ -40,7 +40,7 @@ args = parser.parse_args()
 seed = args.seed
 n_qubits, n_layers, rot_axis = args.n_qubits, args.n_layers, args.rot_axis
 block_size = args.block_size
-exp_name = args.exp_name or f'Q{n_qubits}L{n_layers}_R{rot_axis}BS{block_size}_S{seed}'
+exp_name = args.exp_name or f'Q{n_qubits}L{n_layers}R{rot_axis}BS{block_size} - S{seed} - LR{args.lr}'
 expmgr.init(project='expressibility', name=exp_name, config=args)
 
 target_state = qnnops.create_target_states(n_qubits, 1, seed=seed)
