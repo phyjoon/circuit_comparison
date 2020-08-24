@@ -3,7 +3,6 @@ import argparse
 import jax
 import jax.numpy as jnp
 from jax.config import config
-import wandb
 
 import expmgr
 import qnnops
@@ -63,6 +62,8 @@ expmgr.init(project='IsingModel', name=args.exp_name, config=args)
 # Construct the hamiltonian matrix of Ising model.
 ham_matrix = qnnops.ising_hamiltonian(n_qubits=n_qubits, g=g, h=h)
 expmgr.save_array('hamiltonian_matrix.npy', ham_matrix, upload_to_wandb=False)
+bandwidth = qnnops.bandwidth(ham_matrix)
+expmgr.log_array(bandwidth=bandwidth)
 
 eigval, eigvec = jnp.linalg.eigh(ham_matrix)
 eigvec = eigvec.T  # Transpose such that eigvec[i] is an eigenvector, rather than eigenftn[:, i]
