@@ -36,6 +36,9 @@ parser.add_argument('--scheduler-name', type=str, metavar='NAME', default='const
                          f'(Default: constant)')
 parser.add_argument('--checkpoint-path', type=str, metavar='PATH', default=None,
                     help='A checkpoint file path to resume')
+parser.add_argument('--no-jit', dest='use_jit', action='store_false',
+                    help='Disable jit option to loss function.')
+
 args = parser.parse_args()
 seed = args.seed
 n_qubits, n_layers, rot_axis = args.n_qubits, args.n_layers, args.rot_axis
@@ -64,7 +67,9 @@ trained_params, _ = qnnops.train_loop(
     loss_fn, init_params, args.train_steps, args.lr,
     optimizer_name=args.optimizer_name, optimizer_args=args.optimizer_args,
     scheduler_name=args.scheduler_name,
-    checkpoint_path=args.checkpoint_path)
+    checkpoint_path=args.checkpoint_path,
+    use_jit=args.use_jit
+)
 
 optimized_state = circuit(trained_params)
 expmgr.log_array(optimized_state=optimized_state)

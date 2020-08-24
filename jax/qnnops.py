@@ -1,3 +1,4 @@
+import gc
 import itertools
 import pickle
 from collections import OrderedDict
@@ -151,7 +152,7 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
                optimizer_name='adam', optimizer_args=None,
                scheduler_name='constant',
                loss_args=None, early_stopping=False, monitor=None,
-               log_every=1, checkpoint_path=None):
+               log_every=1, checkpoint_path=None, use_jit=True):
     """ Training loop.
 
     Args:
@@ -169,6 +170,7 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
         monitor: callable -> dict, monitoring function on training.
         log_every: int, logging every N steps.
         checkpoint_path: str, a checkpoint file path to resume.
+        use_jit: bool, whether to use jit compilation.
     Returns:
         params: jnp.array, optimized parameters
         history: dict, training history.
@@ -190,12 +192,18 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
         min_loss = float('inf')
 
     try:
+        grad_loss_fn = jax.value_and_grad(loss_fn)
+        if use_jit:
+            grad_loss_fn = jax.jit(grad_loss_fn)
         for step in range(start_step, train_steps):
             params = get_params(optimizer_state)
-            loss, grad = jax.value_and_grad(loss_fn)(params, **loss_args)
+            loss, grad = grad_loss_fn(params, **loss_args)
             optimizer_state = update_fun(step, grad, optimizer_state)
             updated_params = get_params(optimizer_state)
 
+            grad = onp.array(grad)
+            params = onp.array(params)
+            updated_params = onp.array(updated_params)
             history['loss'].append(loss)
             history['grad'].append(grad)
             history['params'].append(params)
@@ -213,9 +221,13 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
                 expmgr.log(step, logging_output)
                 expmgr.save_array('params_last.npy', updated_params)
                 save_checkpoint('checkpoint_last.pkl', step, optimizer_state, history)
+
             if early_stopping:
                 # TODO(jdk): implement early stopping feature.
                 pass
+            del loss, grad
+            gc.collect()
+
     except Exception as e:
         print(e)
         print('Saving history object...')
