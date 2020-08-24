@@ -46,6 +46,8 @@ parser.add_argument('--checkpoint-path', type=str, metavar='PATH', default=None,
                     help='A checkpoint file path to resume')
 parser.add_argument('--jax-enable-x64', action='store_true',
                     help='Enable jax x64 option.')
+parser.add_argument('--no-jit', dest='use_jit', action='store_false',
+                    help='Disable jit option to loss function.')
 parser.add_argument('--quiet', action='store_true',
                     help='Quite mode (No training logs)')
 args = parser.parse_args()
@@ -110,7 +112,8 @@ trained_params, _ = qnnops.train_loop(
     optimizer_name=args.optimizer_name, optimizer_args=args.optimizer_args,
     scheduler_name=args.scheduler_name,
     monitor=monitor,
-    checkpoint_path=args.checkpoint_path)
+    checkpoint_path=args.checkpoint_path,
+    use_jit=args.use_jit)
 
 optimized_state = circuit(trained_params)
 expmgr.log_array(optimized_state=optimized_state)
