@@ -10,7 +10,7 @@ import qnnops
 
 config.update("jax_enable_x64", True)
 
-parser = argparse.ArgumentParser('Optimizing Ising Model')
+parser = argparse.ArgumentParser('Ising Model VQE')
 parser.add_argument('--n-qubits', type=int, metavar='N', required=True,
                     help='Number of qubits')
 parser.add_argument('--n-layers', type=int, metavar='N', required=True,
@@ -18,8 +18,6 @@ parser.add_argument('--n-layers', type=int, metavar='N', required=True,
 parser.add_argument('--rot-axis', type=str, metavar='R', required=True,
                     choices=['x', 'y', 'z'],
                     help='Direction of rotation gates.')
-parser.add_argument('--block-size', type=int, metavar='N', required=True,
-                    help='Size of a block to entangle multiple qubits.')
 parser.add_argument('--g', type=float, metavar='M', required=True,
                     help='Transverse magnetic field')
 parser.add_argument('--h', type=float, metavar='M', required=True,
@@ -56,18 +54,15 @@ args = parser.parse_args()
 
 seed = args.seed
 n_qubits, n_layers, rot_axis = args.n_qubits, args.n_layers, args.rot_axis
-block_size = args.block_size
+block_size = n_qubits
 g, h = args.g, args.h
 if not args.exp_name:
     args.exp_name = f'Q{n_qubits}L{n_layers}R{rot_axis}BS{block_size} - g{g}h{h} - S{seed} - LR{args.lr}'
 expmgr.init(project='IsingModel', name=args.exp_name, config=args)
 
 # Construct the hamiltonian matrix of Ising model.
-ham_matrix = qnnops.ising_hamiltonian(n_qubits, g, h)
-bandwidth = qnnops.bandwidth(ham_matrix)
-
-print(f'Bandwidth={bandwidth}')
-wandb.config.bandwidth = str(bandwidth)
+ham_matrix = qnnops.ising_hamiltonian(n_qubits=n_qubits, g=g, h=h)
+expmgr.save_array('hamiltonian_matrix.npy', ham_matrix, upload_to_wandb=False)
 
 eigval, eigvec = jnp.linalg.eigh(ham_matrix)
 eigvec = eigvec.T  # Transpose such that eigvec[i] is an eigenvector, rather than eigenftn[:, i]

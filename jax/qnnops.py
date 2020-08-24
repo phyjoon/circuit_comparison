@@ -232,6 +232,7 @@ def save_checkpoint(filename, step, optimizer_state, history):
     checkpoint_path = expmgr.get_result_path(filename)
     with checkpoint_path.open('wb') as f:
         pickle.dump(dict(step=step, state=pytree, history=history), f)
+    expmgr.safe_wandb_save(checkpoint_path)
     return checkpoint_path
 
 

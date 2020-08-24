@@ -22,8 +22,6 @@ parser.add_argument('--rot-axis', type=str, metavar='R', required=True,
                     help='Direction of rotation gates.')
 parser.add_argument('--sample-size', type=int, metavar='N', required=True,
                     help='Size of sample set of gradients.')
-parser.add_argument('--block-size', type=int, metavar='N', required=True,
-                    help='Size of a block to entangle multiple qubits.')
 parser.add_argument('--g', type=float, metavar='M', required=True,
                     help='Transverse magnetic field')
 parser.add_argument('--h', type=float, metavar='M', required=True,
@@ -39,7 +37,7 @@ args = parser.parse_args()
 
 seed = args.seed
 n_qubits, n_layers, rot_axis = args.n_qubits, args.n_layers, args.rot_axis
-block_size = args.block_size
+block_size = n_qubits
 sample_size = args.sample_size
 g, h = args.g, args.h
 
@@ -49,7 +47,7 @@ expmgr.init(project='VanishingGrad', name=args.exp_name, config=args)
 
 
 # Construct the hamiltonian matrix of Ising model.
-ham_matrix = 0
+ham_matrix = qnnops.ising_hamiltonian(n_qubits=n_qubits, g=g, h=h)
 
 # Nearest-neighbor interaction
 spin_coupling = jnp.kron(qnnops.PauliBasis[3], qnnops.PauliBasis[3])
