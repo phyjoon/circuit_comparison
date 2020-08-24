@@ -9,7 +9,7 @@ import qnnops
 
 config.update("jax_enable_x64", True)
 
-parser = argparse.ArgumentParser('Expressibility Test')
+parser = argparse.ArgumentParser('Ising Model VQE')
 parser.add_argument('--n-qubits', type=int, metavar='N', required=True,
                     help='Number of qubits')
 parser.add_argument('--n-layers', type=int, metavar='N', required=True,
@@ -17,8 +17,6 @@ parser.add_argument('--n-layers', type=int, metavar='N', required=True,
 parser.add_argument('--rot-axis', type=str, metavar='R', required=True,
                     choices=['x', 'y', 'z'],
                     help='Direction of rotation gates.')
-parser.add_argument('--block-size', type=int, metavar='N', required=True,
-                    help='Size of a block to entangle multiple qubits.')
 parser.add_argument('--g', type=float, metavar='M', required=True,
                     help='Transverse magnetic field')
 parser.add_argument('--h', type=float, metavar='M', required=True,
@@ -55,7 +53,7 @@ args = parser.parse_args()
 
 seed = args.seed
 n_qubits, n_layers, rot_axis = args.n_qubits, args.n_layers, args.rot_axis
-block_size = args.block_size
+block_size = n_qubits
 g, h = args.g, args.h
 if not args.exp_name:
     args.exp_name = f'Q{n_qubits}L{n_layers}g{g}h{h}_R{rot_axis}BS{block_size}_S{seed}_LR{args.lr}'
@@ -63,27 +61,7 @@ expmgr.init(project='IsingModel', name=args.exp_name, config=args)
 
 
 # Construct the hamiltonian matrix of Ising model.
-ham_matrix = 0
-
-# Nearest-neighbor interaction
-spin_coupling = jnp.kron(qnnops.PauliBasis[3], qnnops.PauliBasis[3])
-
-for i in range(n_qubits - 1):
-    ham_matrix -= jnp.kron(jnp.kron(jnp.eye(2 ** i), spin_coupling),
-                           jnp.eye(2 ** (n_qubits - 2 - i)))
-    ham_matrix -= jnp.kron(jnp.kron(qnnops.PauliBasis[3], jnp.eye(2 ** (n_qubits - 2))),
-                           qnnops.PauliBasis[3])  # Periodic B.C
-
-# Transverse magnetic field
-for i in range(n_qubits):
-    ham_matrix -= g * jnp.kron(jnp.kron(jnp.eye(2 ** i), qnnops.PauliBasis[1]),
-                               jnp.eye(2 ** (n_qubits - 1 - i)))
-
-# Longitudinal magnetic field
-for i in range(n_qubits):
-    ham_matrix -= h * jnp.kron(jnp.kron(jnp.eye(2 ** i), qnnops.PauliBasis[3]),
-                               jnp.eye(2 ** (n_qubits - 1 - i)))
-
+ham_matrix = qnnops.ising_hamiltonian(n_qubits=n_qubits, g=g, h=h)
 expmgr.save_array('hamiltonian_matrix.npy', ham_matrix, upload_to_wandb=False)
 
 eigval, eigvec = jnp.linalg.eigh(ham_matrix)
