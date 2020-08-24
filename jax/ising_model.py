@@ -3,7 +3,6 @@ import argparse
 import jax
 import jax.numpy as jnp
 from jax.config import config
-import wandb
 
 import expmgr
 import qnnops
