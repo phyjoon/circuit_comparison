@@ -3,6 +3,7 @@ import argparse
 import jax
 import jax.numpy as jnp
 from jax.config import config
+import wandb
 
 import expmgr
 import qnnops
@@ -31,7 +32,7 @@ parser.add_argument('--seed', type=int, metavar='N', required=True,
                     help='Random seed. For reproducibility, the value is set explicitly.')
 parser.add_argument('--exp-name', type=str, metavar='NAME', default=None,
                     help='Experiment name. If None, the following format will be used as '
-                         'the experiment name: Q{n_qubits}L{n_layers}_R{rot_axis}BS{block_size}')
+                         'the experiment name: Q{n_qubits}L{n_layers}R{rot_axis}BS{block_size} - g{g}h{h} - S{seed} - LR{lr}')
 parser.add_argument('--optimizer-name', type=str, metavar='NAME', default='adam',
                     help='Optimizer name. Supports: adam, nesterov, sgd (Default: adam)')
 parser.add_argument('--optimizer-args', type=str, metavar='STR', default=None,
@@ -56,9 +57,8 @@ n_qubits, n_layers, rot_axis = args.n_qubits, args.n_layers, args.rot_axis
 block_size = n_qubits
 g, h = args.g, args.h
 if not args.exp_name:
-    args.exp_name = f'Q{n_qubits}L{n_layers}g{g}h{h}_R{rot_axis}BS{block_size}_S{seed}_LR{args.lr}'
+    args.exp_name = f'Q{n_qubits}L{n_layers}R{rot_axis}BS{block_size} - g{g}h{h} - S{seed} - LR{args.lr}'
 expmgr.init(project='IsingModel', name=args.exp_name, config=args)
-
 
 # Construct the hamiltonian matrix of Ising model.
 ham_matrix = qnnops.ising_hamiltonian(n_qubits=n_qubits, g=g, h=h)
@@ -68,6 +68,7 @@ eigval, eigvec = jnp.linalg.eigh(ham_matrix)
 eigvec = eigvec.T  # Transpose such that eigvec[i] is an eigenvector, rather than eigenftn[:, i]
 ground_state = eigvec[0]
 next_to_ground_state = eigvec[1]
+next_to_next_to_ground_state = eigvec[2]
 
 print("The lowest eigenvalues (energy) and corresponding eigenvectors (state)")
 for i in range(min(5, len(eigval))):
@@ -86,16 +87,18 @@ def circuit(params):
 
 def loss(params):
     ansatz_state = circuit(params)
-    return qnnops.energy(ham_matrix, ansatz_state)
+    return qnnops.energy(ham_matrix, ansatz_state) - eigval[0]
 
 
 def monitor(params, **kwargs):  # use kwargs for the flexibility.
     ansatz_state = circuit(params)
     fidelity_with_ground_state = qnnops.fidelity(ansatz_state, ground_state)
     fidelity_with_next_to_ground = qnnops.fidelity(ansatz_state, next_to_ground_state)
+    fidelity_with_next_to_next_to_ground = qnnops.fidelity(ansatz_state, next_to_next_to_ground_state)
     return {
         'fidelity/ground': fidelity_with_ground_state.item(),
         'fidelity/next_to_ground': fidelity_with_next_to_ground.item(),
+        'fidelity/next_to_next_to_ground': fidelity_with_next_to_next_to_ground.item()
     }
 
 

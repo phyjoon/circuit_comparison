@@ -12,6 +12,9 @@ from jax.experimental import optimizers
 import expmgr
 import gate_jax as gates
 
+from itertools import combinations
+from math import factorial
+
 jax.config.update("jax_enable_x64", True)
 
 
@@ -305,4 +308,43 @@ def ising_hamiltonian(n_qubits, g, h):
     for i in range(n_qubits):
         ham_matrix -= h * jnp.kron(jnp.kron(jnp.eye(2 ** i), PauliBasis[3]),
                                    jnp.eye(2 ** (n_qubits - 1 - i)))
+    return ham_matrix
+
+def SYK_hamiltonian(rng, n_qubits):
+    """ Construct the hamiltonian matrix of Ising model.
+
+    Args:
+        n_qubits: int, Number of qubits
+        g: float, Transverse magnetic field
+        h: float, Longitudinal magnetic field
+    """
+    # Construct the gamma matrices for SO(2 * n_qubits) Clifford algebra
+    gamma_matrices, n_gamma = [], 2 * n_qubits
+
+    for k in range(n_gamma):
+        temp = jnp.eye(1)
+        
+        for j in range(k//2):
+            temp = jnp.kron(temp, PauliBasis[3])
+            
+        if k % 2 == 0:
+            temp = jnp.kron(temp, PauliBasis[1])
+        else:
+            temp = jnp.kron(temp, PauliBasis[2])
+            
+        for i in range(int(n_gamma/2) - (k//2) - 1):
+            temp = jnp.kron(temp, PauliBasis[0])
+            
+        gamma_matrices.append(temp)
+
+    # Number of SYK4 interaction terms
+    n_terms = int(factorial(n_gamma) / factorial(4) / factorial(n_gamma - 4)) 
+
+    # SYK4 random coupling
+    couplings = jax.random.normal(key=rng, shape=(n_terms, ), dtype=jnp.float64) * jnp.sqrt(6 / (n_gamma ** 3))
+
+    ham_matrix = 0
+    for idx, (x, y, w, z) in enumerate(combinations(range(n_gamma), 4)):
+        ham_matrix += (couplings[idx] / 4) * jnp.linalg.multi_dot([gamma_matrices[x], gamma_matrices[y], gamma_matrices[w], gamma_matrices[z]])
+        
     return ham_matrix
