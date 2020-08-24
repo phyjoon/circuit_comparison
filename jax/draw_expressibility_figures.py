@@ -1,4 +1,6 @@
 import re
+from pathlib import Path
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -30,6 +32,23 @@ def sample_mean(res):
     return x, y_mean, y_std
 
 
+def compute_min_and_max(res):
+    x = res.n_layers.unique()
+    x.sort()
+    y_mean = []
+    y_min = []
+    y_max = []
+    for l in x:
+        r = res[res.n_layers == l]
+        y_mean.append(r.min_loss.mean())
+        y_min.append(r.min_loss.min())
+        y_max.append(r.min_loss.max())
+    y_mean = np.array(y_mean)
+    y_min = np.array(y_min)
+    y_max = np.array(y_max)
+    return x, y_mean, y_min, y_max
+
+
 def plot_expressibility_scatter_graph(results):
     markers = ['+', 'x']
     linestyles = ['-', '-.']
@@ -48,6 +67,31 @@ def plot_expressibility_scatter_graph(results):
     plt.ylabel(r'Expressibility,  $\epsilon$', fontsize=12)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
     plt.legend()
+
+    axes = plt.gca()
+    axes.spines['right'].set_visible(False)
+    axes.spines['top'].set_visible(False)
+    plt.tight_layout()
+    plt.savefig('fig/expressibility.png')
+    plt.show()
+
+
+def plot_expressibility_fill_between(results):
+    linestyles = ['-', '-.', '--', ':']
+    for i, label in enumerate(
+            sorted(results, key=lambda s: int(s.split(' ')[0]))):
+        res = results[label]
+        x, y_mean, y_min, y_max = compute_min_and_max(res)
+        plt.plot(x, y_mean, linestyles[i],
+                 linewidth=1.2, alpha=1.,
+                 label=f'{label}')
+        plt.fill_between(x, y_min, y_max, alpha=0.35)
+
+    plt.yscale('log')
+    plt.xlabel(r'Number of layers, $L$', fontsize=12)
+    plt.ylabel(r'Expressibility,  $\epsilon$', fontsize=12)
+    plt.grid(True, c='0.5', ls=':', lw=0.5)
+    plt.legend(loc='right')
 
     axes = plt.gca()
     axes.spines['right'].set_visible(False)
@@ -81,10 +125,23 @@ def plot_expressibility_sample_mean_graph(results):
     plt.show()
 
 
-def main():
+def load_df():
     # TODO(jdk): Let us download via wandb API.
-    filepath = 'wandb_expressibility_minloss_20200822.csv'
-    df = pd.read_csv(filepath, index_col=0, na_values=['undefined'])
+    # filepath = 'wandb_expressibility_minloss_200823.csv'
+    resdir = Path('results_expressibility')
+    df = None
+    for f in resdir.glob('*.csv'):
+        _df = pd.read_csv(f, index_col=0, na_values=['undefined'])
+        if df is None:
+            df = _df
+        else:
+            df = df.join(_df)
+        print(f, _df.shape, df.shape)
+    return df
+
+
+def main():
+    df = load_df()
     min_values = df.min()  # eq. (2)
 
     results = {}
@@ -103,7 +160,8 @@ def main():
         for l, d in res.groupby(by=['n_layers']):
             print(f'n_layers: {l:3d},\tn_samples: {len(d)}')
 
-    plot_expressibility_scatter_graph(results)
+    # plot_expressibility_scatter_graph(results)
+    plot_expressibility_fill_between(results)
 
 
 if __name__ == '__main__':
