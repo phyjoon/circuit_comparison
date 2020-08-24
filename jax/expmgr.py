@@ -2,11 +2,13 @@
 
 """
 import argparse
+import os
 from datetime import datetime
 from pathlib import Path
 
 import jax
 import jax.numpy as jnp
+import psutil
 import wandb
 import yaml
 
@@ -133,6 +135,17 @@ def log_array(**kwargs):
     for k, v in kwargs.items():
         print(k, str(v))
         wandb.config.__setattr__(k, str(v))
+
+
+def print_memory_usage(tag=None, unit='mb'):
+    unit = unit.upper()
+    unit_val = dict(KB=1024., MB=1024*1024.)[unit]
+    process = psutil.Process(os.getpid())
+    mem_usage = process.memory_info().rss / unit_val
+    str_header = '[Memory Usage]'
+    if tag:
+        str_header += f' {tag}'
+    print(f'{str_header} {mem_usage:.2f} {unit}')
 
 
 if __name__ == '__main__':
