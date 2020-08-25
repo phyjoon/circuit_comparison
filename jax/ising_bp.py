@@ -65,7 +65,7 @@ for i in range(1, M + 1):
             _params, n_qubits, block_size, n_layers, rot_axis)
         return qnnops.energy(ham_matrix, ansatz_state)
 
-    grad_ftn = jax.grad(loss)
+    grad_fn = jax.grad(loss)
     if args.use_jit:
         grad_loss_fn = jax.jit(grad_fn)
         
