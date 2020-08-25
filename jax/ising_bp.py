@@ -56,7 +56,7 @@ ham_matrix = qnnops.ising_hamiltonian(n_qubits, g, h)
 rng = jax.random.PRNGKey(seed)  # Set of random seeds for parameter sampling
 
 M = int(max_n_layers / n_qubits)
-for i in range(1, M + 1):
+for i in reversed(range(1, M + 1)):
     n_layers = i * n_qubits
     print(f'{n_qubits} Qubits & {n_layers} Layers ({i}/{M})')
 
@@ -98,9 +98,9 @@ for i in range(1, M + 1):
     
     wandb.log(
         dict(
-            grad_component_all=wandb.Histogram(grads),
-            grad_component_single=wandb.Histogram(grads[:, 0]),
-            grad_norm=wandb.Histogram(grad_norms)
+            grad_component_all=wandb.Histogram(np_histogram=onp.histrogram(grads, bins=64, density=True)),
+            grad_component_single=wandb.Histogram(np_histogram=onp.histrogram(grads[:, 0], bins=64, density=True)),
+            grad_norm=wandb.Histogram(np_histogram=onp.histrogram(grad_norms, bins=64, density=True))
         ),
         step=n_layers
     )
