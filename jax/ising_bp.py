@@ -74,7 +74,7 @@ for i in range(1, M + 1):
     for step in tqdm(range(sample_size)):
         rng, param_rng = jax.random.split(rng)
         _, param = qnnops.initialize_circuit_params(param_rng, n_qubits, n_layers)
-        grad = grad_ftn(param)
+        grad = grad_fn(param)
         params.append(param)
         grads.append(grad)
 
