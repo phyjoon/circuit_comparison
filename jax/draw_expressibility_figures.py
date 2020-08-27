@@ -2,8 +2,11 @@ import re
 from pathlib import Path
 
 import pandas as pd
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+
+matplotlib.rcParams['mathtext.fontset'] = 'stix'
 
 
 def parse_name(name):
@@ -51,7 +54,7 @@ def compute_min_and_max(res):
 
 def plot_expressibility_scatter_graph(results):
     markers = ['+', 'x']
-    linestyles = ['-', '-.']
+    linestyles = ['-o', '-.x']
     for i, label in enumerate(sorted(results)):
         res = results[label]
         x, y_mean, y_std = sample_mean(res)
@@ -64,7 +67,7 @@ def plot_expressibility_scatter_graph(results):
 
     plt.yscale('log')
     plt.xlabel(r'Number of layers, $L$', fontsize=12)
-    plt.ylabel(r'Expressibility,  $\epsilon$', fontsize=12)
+    plt.ylabel(r'Expressibility,  $\varepsilon_m / 2^n$', fontsize=12)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
     plt.legend()
 
@@ -72,24 +75,26 @@ def plot_expressibility_scatter_graph(results):
     axes.spines['right'].set_visible(False)
     axes.spines['top'].set_visible(False)
     plt.tight_layout()
-    plt.savefig('fig/expressibility.png')
+    plt.savefig('fig/expressibility.pdf')
     plt.show()
 
 
 def plot_expressibility_fill_between(results):
-    linestyles = ['-', '-.', '--', ':']
+    linestyles = ['-o', '-.x', '-->', ':']
     for i, label in enumerate(
             sorted(results, key=lambda s: int(s.split(' ')[0]))):
         res = results[label]
         x, y_mean, y_min, y_max = compute_min_and_max(res)
         plt.plot(x, y_mean, linestyles[i],
                  linewidth=1.2, alpha=1.,
+                 markerfacecolor='none', markersize=5,
                  label=f'{label}')
         plt.fill_between(x, y_min, y_max, alpha=0.35)
 
     plt.yscale('log')
-    plt.xlabel(r'Number of layers, $L$', fontsize=12)
-    plt.ylabel(r'Expressibility,  $\epsilon$', fontsize=12)
+    plt.xlim(0, 155)
+    plt.xlabel(r'$L$', fontsize=13)
+    plt.ylabel(r'$\varepsilon_m \ / \ 2^{n}$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
     plt.legend(loc='right')
 
@@ -97,7 +102,7 @@ def plot_expressibility_fill_between(results):
     axes.spines['right'].set_visible(False)
     axes.spines['top'].set_visible(False)
     plt.tight_layout()
-    plt.savefig('fig/expressibility.png')
+    plt.savefig('fig/expressibility.pdf')
     plt.show()
 
 
@@ -121,7 +126,7 @@ def plot_expressibility_sample_mean_graph(results):
     axes.spines['right'].set_visible(False)
     axes.spines['top'].set_visible(False)
     plt.tight_layout()
-    plt.savefig('fig/expressibility-ver2.png')
+    plt.savefig('fig/expressibility-ver2.pdf')
     plt.show()
 
 
