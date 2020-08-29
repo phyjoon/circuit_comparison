@@ -127,11 +127,10 @@ def draw_grad_var(resdir, n_qubits_list, linestyles, n_samples=5000):
                  markerfacecolor='none', markersize=5,
                  label=label)
     plt.yscale('log')
-    # plt.xlim(0, 155)
+    plt.xlim(0, 260)
     plt.xlabel(r'$L$', fontsize=13)
-    plt.ylabel(r'$\mathrm{Var}(\partial_{\theta_i} \, E)$', fontsize=13)
+    plt.ylabel(r'$\mathrm{Var}\,(\partial_{\theta_i} \, (E_{\mathbf{\theta}} - E_0) )$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
-    # plt.legend(loc='upper right')
     plt.legend(loc='lower right')
 
     axes = plt.gca()
@@ -154,7 +153,7 @@ def draw_grad_norm_shaded_version(resdir, n_qubits_list, linestyles, n_samples=5
 
     plt.xlim(0, 260)
     plt.xlabel(r'$L$', fontsize=13)
-    plt.ylabel(r'$\|\| \, \partial_{\theta_i} \, E \, \|\|$', fontsize=13)
+    plt.ylabel(r'$\|\| \, \partial \, (E_{\mathbf{\theta}} - E_0) \, \|\|$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
     plt.legend(loc='upper left')
 
@@ -183,7 +182,7 @@ def draw_grad_norm(resdir, n_qubits_list, linestyles, n_samples=5000):
         )
     plt.xlim(0, 260)
     plt.xlabel(r'$L$', fontsize=13)
-    plt.ylabel(r'$\|\| \, \partial_{\theta_i} \, E \, \|\|$', fontsize=13)
+    plt.ylabel(r'$\|\| \, \partial \, (E_{\mathbf{\theta}} - E_0) \, \|\|$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
     plt.legend(loc='upper left')
 
