@@ -94,8 +94,8 @@ def load_df(resdir, label, n_samples=5000):
             grads_norm = np.linalg.norm(grads, axis=1)
             grads_norm_max = grads_norm.max()
             grads_norm_min = grads_norm.min()
-            grads_norm_first_quantile = np.quantile(grads_norm, 0.25)
-            grads_norm_third_quantile = np.quantile(grads_norm, 0.75)
+            grads_norm_first_quartile = np.quantile(grads_norm, 0.25)
+            grads_norm_third_quartile = np.quantile(grads_norm, 0.75)
             grads_norm_mean = grads_norm.mean()
             grads_norm_var = grads_norm.var()
 
@@ -108,8 +108,8 @@ def load_df(resdir, label, n_samples=5000):
                     grad_norm_var=grads_norm_var,
                     grad_norm_max=grads_norm_max,
                     grad_norm_min=grads_norm_min,
-                    grads_norm_first_quantile=grads_norm_first_quantile,
-                    grads_norm_third_quantile=grads_norm_third_quantile
+                    grads_norm_first_quartile=grads_norm_first_quartile,
+                    grads_norm_third_quartile=grads_norm_third_quartile
                 )
             )
 
@@ -172,8 +172,8 @@ def draw_grad_norm(resdir, n_qubits_list, linestyles, n_samples=5000):
     for i, n_qubits in enumerate(n_qubits_list):
         label = f'{n_qubits} Qubits'
         df = load_df(resdir, label, n_samples=n_samples)
-        err_high = df.grads_norm_third_quantile - df.grad_norm_mean
-        err_low = df.grad_norm_mean - df.grads_norm_first_quantile
+        err_high = df.grads_norm_third_quartile - df.grad_norm_mean
+        err_low = df.grad_norm_mean - df.grads_norm_first_quartile
         plt.errorbar(
             df.n_layers, df.grad_norm_mean,
             fmt=linestyles[i],
