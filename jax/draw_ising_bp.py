@@ -126,10 +126,12 @@ def draw_grad_var(resdir, n_qubits_list, linestyles, n_samples=5000):
                  linewidth=1.2, alpha=1.,
                  markerfacecolor='none', markersize=5,
                  label=label)
+
+    plt.xscale('log')
     plt.yscale('log')
-    plt.xlim(0, 260)
+    # plt.xlim(0, 260)
     plt.xlabel(r'$L$', fontsize=13)
-    plt.ylabel(r'$\mathrm{Var}\,(\partial_{\theta_i} \, (E_{\mathbf{\theta}} - E_0) )$', fontsize=13)
+    plt.ylabel(r'$\mathrm{Var}\,(\partial_{\theta_i} \, (E(\mathbf{\theta}) - E_0) )$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
     plt.legend(loc='lower right')
 
@@ -151,9 +153,10 @@ def draw_grad_norm_shaded_version(resdir, n_qubits_list, linestyles, n_samples=5
                  label=label)
         plt.fill_between(df.n_layers, df.grad_norm_min, df.grad_norm_max, alpha=0.35)
 
-    plt.xlim(0, 260)
+    plt.xscale('log')
+    # plt.xlim(0, 260)
     plt.xlabel(r'$L$', fontsize=13)
-    plt.ylabel(r'$\|\| \, \partial \, (E_{\mathbf{\theta}} - E_0) \, \|\|$', fontsize=13)
+    plt.ylabel(r'$\|\| \, \nabla_{\bm{\theta}} \, (E(\mathbf{\theta}) - E_0) \, \|\|$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
     plt.legend(loc='upper left')
 
@@ -180,9 +183,10 @@ def draw_grad_norm(resdir, n_qubits_list, linestyles, n_samples=5000):
             capsize=2.3,
             label=label
         )
-    plt.xlim(0, 260)
+    plt.xscale('log')
+    # plt.xlim(0, 260)
     plt.xlabel(r'$L$', fontsize=13)
-    plt.ylabel(r'$\|\| \, \partial \, (E_{\mathbf{\theta}} - E_0) \, \|\|$', fontsize=13)
+    plt.ylabel(r'$\|\| \, \nabla_{\mathbf{\theta}} \, (E(\mathbf{\theta}) - E_0) \, \|\|$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
     plt.legend(loc='upper left')
 
@@ -199,8 +203,8 @@ def main():
     linestyles = ['-o', '-.x', '-->', ':^']
     n_qubits_list = [4, 6, 8, 10]
     # n_qubits_list = [6]
-    for i, n_qubits in enumerate(n_qubits_list):
-        download_from_wandb(resdir, n_qubits)
+    # for i, n_qubits in enumerate(n_qubits_list):
+    #     download_from_wandb(resdir, n_qubits)
     draw_grad_var(resdir, n_qubits_list, linestyles, n_samples=1000)
     draw_grad_norm(resdir, n_qubits_list, linestyles, n_samples=1000)
 
