@@ -61,7 +61,7 @@ def plot_expressibility_fill_between(results):
         plt.plot(x, y_mean, linestyles[i],
                  linewidth=1.2, alpha=1.,
                  markerfacecolor='none', markersize=5,
-                 label=f'{label}')
+                 label=label)
         plt.fill_between(x, y_min, y_max, alpha=0.35)
 
     plt.yscale('log')
