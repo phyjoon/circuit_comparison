@@ -87,15 +87,21 @@ def load_df(resdir, label, n_samples=5000):
                     f'{f.name} has only {len(grads)} samples,'
                     f'while we need {n_samples} samples to draw.'
                 )
+            print(f.name, 'n_samples', len(grads))
             np.random.seed(43)  # fix random seed
             np.random.shuffle(grads)
             grads = grads[:n_samples]
 
+            grad_var = grads.var(axis=0)
+            grad_var_mean_over_param = grad_var.mean()
+            grad_var_min_over_param = grad_var.min()
+            grad_var_max_over_param = grad_var.max()
+
             grads_norm = np.linalg.norm(grads, axis=1)
             grads_norm_max = grads_norm.max()
             grads_norm_min = grads_norm.min()
-            grads_norm_first_quantile = np.quantile(grads_norm, 0.25)
-            grads_norm_third_quantile = np.quantile(grads_norm, 0.75)
+            grads_norm_first_quartile = np.quantile(grads_norm, 0.25)
+            grads_norm_third_quartile = np.quantile(grads_norm, 0.75)
             grads_norm_mean = grads_norm.mean()
             grads_norm_var = grads_norm.var()
 
@@ -104,12 +110,15 @@ def load_df(resdir, label, n_samples=5000):
                     n_layers=int(retrieve_values_from_name(f.name)[1]),
                     grad_mean=grads.mean(axis=0)[0],
                     grad_var=grads.var(axis=0)[0],
+                    grad_var_mean_over_param=grad_var_mean_over_param,
+                    grad_var_min_over_param=grad_var_min_over_param,
+                    grad_var_max_over_param=grad_var_max_over_param,
                     grad_norm_mean=grads_norm_mean,
                     grad_norm_var=grads_norm_var,
                     grad_norm_max=grads_norm_max,
                     grad_norm_min=grads_norm_min,
-                    grads_norm_first_quantile=grads_norm_first_quantile,
-                    grads_norm_third_quantile=grads_norm_third_quantile
+                    grad_norm_first_quartile=grads_norm_first_quartile,
+                    grad_norm_third_quartile=grads_norm_third_quartile
                 )
             )
 
@@ -124,12 +133,46 @@ def draw_grad_var(resdir, n_qubits_list, linestyles, n_samples=5000):
         df = load_df(resdir, label, n_samples=n_samples)
         plt.plot(df.n_layers, df.grad_var, linestyles[i],
                  linewidth=1.2, alpha=1.,
-                 markerfacecolor='none', markersize=5,
+                 # markerfacecolor='none',
+                 markersize=5,
                  label=label)
+
+    plt.xscale('log')
     plt.yscale('log')
-    plt.xlim(0, 260)
+    # plt.xlim(0, 260)
     plt.xlabel(r'$L$', fontsize=13)
-    plt.ylabel(r'$\mathrm{Var}\,(\partial_{\theta_i} \, (E_{\mathbf{\theta}} - E_0) )$', fontsize=13)
+    plt.ylabel(r'$\mathrm{Var}\,(\partial_{\theta_i} \, (E(\mathbf{\theta}) - E_0) )$', fontsize=13)
+    plt.grid(True, c='0.5', ls=':', lw=0.5)
+    plt.legend(loc='lower right')
+
+    axes = plt.gca()
+    axes.spines['right'].set_visible(False)
+    axes.spines['top'].set_visible(False)
+    plt.tight_layout()
+    plt.savefig('fig/ising_bp_grad_var.pdf')
+    plt.show()
+
+
+def draw_grad_var_with_variance(resdir, n_qubits_list, linestyles, n_samples=5000):
+    for i, n_qubits in enumerate(n_qubits_list):
+        label = f'{n_qubits} Qubits'
+        df = load_df(resdir, label, n_samples=n_samples)
+        plt.plot(df.n_layers, df.grad_var_mean_over_param, linestyles[i],
+                 linewidth=1.2, alpha=1.,
+                 # markerfacecolor='none',
+                 markersize=5,
+                 label=label)
+        plt.fill_between(
+            df.n_layers,
+            df.grad_var_min_over_param,
+            df.grad_var_max_over_param,
+            alpha=0.35)
+
+    plt.xscale('log')
+    plt.yscale('log')
+    # plt.xlim(0, 260)
+    plt.xlabel(r'$L$', fontsize=13)
+    plt.ylabel(r'$\mathrm{Var}\,(\partial_{\theta_i} \, (E(\mathbf{\theta}) - E_0) )$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
     plt.legend(loc='lower right')
 
@@ -147,13 +190,15 @@ def draw_grad_norm_shaded_version(resdir, n_qubits_list, linestyles, n_samples=5
         df = load_df(resdir, label, n_samples=n_samples)
         plt.plot(df.n_layers, df.grad_norm_mean, linestyles[i],
                  linewidth=1.2, alpha=1.,
-                 markerfacecolor='none', markersize=5,
+                 # markerfacecolor='none',
+                 markersize=5,
                  label=label)
         plt.fill_between(df.n_layers, df.grad_norm_min, df.grad_norm_max, alpha=0.35)
 
-    plt.xlim(0, 260)
+    plt.xscale('log')
+    # plt.xlim(0, 260)
     plt.xlabel(r'$L$', fontsize=13)
-    plt.ylabel(r'$\|\| \, \partial \, (E_{\mathbf{\theta}} - E_0) \, \|\|$', fontsize=13)
+    plt.ylabel(r'$\|\| \, \nabla_{\bm{\theta}} \, (E(\mathbf{\theta}) - E_0) \, \|\|$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
     plt.legend(loc='upper left')
 
@@ -169,20 +214,69 @@ def draw_grad_norm(resdir, n_qubits_list, linestyles, n_samples=5000):
     for i, n_qubits in enumerate(n_qubits_list):
         label = f'{n_qubits} Qubits'
         df = load_df(resdir, label, n_samples=n_samples)
-        err_high = df.grads_norm_third_quantile - df.grad_norm_mean
-        err_low = df.grad_norm_mean - df.grads_norm_first_quantile
+        err_high = df.grad_norm_third_quartile - df.grad_norm_mean
+        err_low = df.grad_norm_mean - df.grad_norm_first_quartile
         plt.errorbar(
             df.n_layers, df.grad_norm_mean,
             fmt=linestyles[i],
             linewidth=1.2, alpha=1.,
-            markerfacecolor='none', markersize=5,
+            # markerfacecolor='none',
+            markersize=5,
             yerr=[err_low, err_high],
             capsize=2.3,
             label=label
         )
-    plt.xlim(0, 260)
+    plt.xscale('log')
+    # plt.xlim(0, 260)
     plt.xlabel(r'$L$', fontsize=13)
-    plt.ylabel(r'$\|\| \, \partial \, (E_{\mathbf{\theta}} - E_0) \, \|\|$', fontsize=13)
+    plt.ylabel(r'$\|\| \, \nabla_{\mathbf{\theta}} \, (E(\mathbf{\theta}) - E_0) \, \|\|$', fontsize=13)
+    plt.grid(True, c='0.5', ls=':', lw=0.5)
+    plt.legend(loc='upper left')
+
+    axes = plt.gca()
+    axes.spines['right'].set_visible(False)
+    axes.spines['top'].set_visible(False)
+    plt.tight_layout()
+    plt.savefig('fig/ising_bp_grad_norm.pdf')
+    plt.show()
+
+
+def draw_grad_norm_with_shading(resdir, n_qubits_list, linestyles, n_samples=5000):
+    for i, n_qubits in enumerate(n_qubits_list):
+        label = f'{n_qubits} Qubits'
+        df = load_df(resdir, label, n_samples=n_samples)
+        plt.plot(df.n_layers, df.grad_norm_mean, linestyles[i],
+                 linewidth=1.2, alpha=1.,
+                 # markerfacecolor='none',
+                 markersize=5,
+                 label=label)
+        plt.fill_between(
+            df.n_layers,
+            df.grad_norm_first_quartile,
+            df.grad_norm_third_quartile,
+            alpha=0.35)
+
+        # err_high = df.grad_norm_third_quartile - df.grad_norm_mean
+        # err_low = df.grad_norm_mean - df.grad_norm_first_quartile
+        # plt.errorbar(
+        #     df.n_layers, df.grad_norm_mean,
+        #     fmt=linestyles[i],
+        #     linewidth=1.2, alpha=1.,
+        #     markerfacecolor='none', markersize=5,
+        #     yerr=[err_low, err_high],
+        #     capsize=2.3,
+        #     label=label
+        # )
+        # plt.fill_between(
+        #     df.n_layers,
+        #     df.grad_norm_min,
+        #     df.grad_norm_max,
+        #     alpha=0.35)
+
+    plt.xscale('log')
+    # plt.xlim(0, 260)
+    plt.xlabel(r'$L$', fontsize=13)
+    plt.ylabel(r'$\|\| \, \nabla_{\mathbf{\theta}} \, (E(\mathbf{\theta}) - E_0) \, \|\|$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
     plt.legend(loc='upper left')
 
@@ -196,13 +290,14 @@ def draw_grad_norm(resdir, n_qubits_list, linestyles, n_samples=5000):
 
 def main():
     resdir = Path(f'results_ising_bp/{datetime.now().strftime("%Y%m%d")}')
-    linestyles = ['-o', '-.x', '-->', ':^']
+    linestyles = ['-o', '-.o', '--o', ':o']
     n_qubits_list = [4, 6, 8, 10]
     # n_qubits_list = [6]
-    for i, n_qubits in enumerate(n_qubits_list):
-        download_from_wandb(resdir, n_qubits)
-    draw_grad_var(resdir, n_qubits_list, linestyles, n_samples=1000)
-    draw_grad_norm(resdir, n_qubits_list, linestyles, n_samples=1000)
+    # for i, n_qubits in enumerate(n_qubits_list):
+    #     download_from_wandb(resdir, n_qubits)
+    # draw_grad_var(resdir, n_qubits_list, linestyles, n_samples=1000)
+    draw_grad_var_with_variance(resdir, n_qubits_list, linestyles, n_samples=1000)
+    draw_grad_norm_with_shading(resdir, n_qubits_list, linestyles, n_samples=1000)
 
 
 if __name__ == '__main__':
