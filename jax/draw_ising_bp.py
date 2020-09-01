@@ -197,8 +197,8 @@ def main():
     linestyles = ['-o', '-.o', '--o', ':o']
     n_samples = 5000
     n_qubits_list = [4, 6, 8, 10]
-    # for i, n_qubits in enumerate(n_qubits_list):
-    #     download_from_wandb(resdir, n_qubits)
+    for i, n_qubits in enumerate(n_qubits_list):
+        download_from_wandb(resdir, n_qubits)
 
     draw_grad_var_with_variance(
         resdir, n_qubits_list, linestyles,
