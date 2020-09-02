@@ -53,6 +53,9 @@ def download_from_wandb(resdir, n_qubits):
             name = f'{run.config["n_qubits"]} Qubits'
             vals = retrieve_values_from_name(fname)
             n_layers = int(vals[1])  # vals = Q, L, BS, g, h
+            if n_layers < 2:
+                print('Skip 1 layer!!')
+                continue
             print(f'| {name} and {n_layers} Layers', end=' ')
             if name not in grads_results:
                 grads_results[name] = {}
@@ -164,6 +167,7 @@ def draw_grad_norm_with_shading(resdir, n_qubits_list, linestyles, n_samples=500
     for i, n_qubits in enumerate(n_qubits_list):
         label = f'{n_qubits} Qubits'
         df = load_df(resdir, label, n_samples=n_samples)
+        df.to_pickle(resdir / f'Q{n_qubits}.pkl')
         plt.plot(df.n_layers, df.grad_norm_mean, linestyles[i],
                  linewidth=1.2, alpha=1.,
                  markersize=5,
