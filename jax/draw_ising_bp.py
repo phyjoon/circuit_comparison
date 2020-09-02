@@ -150,7 +150,7 @@ def draw_grad_var_with_variance(resdir, n_qubits_list, linestyles, n_samples=500
     plt.yscale(yscale)
     # plt.xlim(0, 260)
     plt.xlabel(r'$L$', fontsize=13)
-    plt.ylabel(r'$\mathrm{Var}\,(\partial_{\theta_i} \, (E(\mathbf{\theta}) - E_0) )$', fontsize=13)
+    plt.ylabel(r'$\mathrm{Var}\,(\partial_{\theta_i} \, E(\mathbf{\theta}) )$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
     plt.legend(loc='lower right')
 
@@ -182,7 +182,7 @@ def draw_grad_norm_with_shading(resdir, n_qubits_list, linestyles, n_samples=500
     plt.yscale(yscale)
     # plt.xlim(0, 260)
     plt.xlabel(r'$L$', fontsize=13)
-    plt.ylabel(r'$\|\| \, \nabla_{\mathbf{\theta}} \, (E(\mathbf{\theta}) - E_0) \, \|\|$', fontsize=13)
+    plt.ylabel(r'$\|\| \, \nabla_{\mathbf{\theta}} \, E(\mathbf{\theta}) \, \|\|$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
     plt.legend(loc='upper left')
 
