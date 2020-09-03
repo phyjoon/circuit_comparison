@@ -38,6 +38,8 @@ parser.add_argument('--checkpoint-path', type=str, metavar='PATH', default=None,
                     help='A checkpoint file path to resume')
 parser.add_argument('--no-jit', dest='use_jit', action='store_false',
                     help='Disable jit option to loss function.')
+parser.add_argument('--no-time-tag', dest='time_tag', action='store_false',
+                    help='Omit the time tag from experiment name.')
 
 args = parser.parse_args()
 seed = args.seed

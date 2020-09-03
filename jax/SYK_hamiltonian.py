@@ -50,6 +50,8 @@ parser.add_argument('--jax-enable-x64', action='store_true',
                     help='Enable jax x64 option.')
 parser.add_argument('--no-jit', dest='use_jit', action='store_false',
                     help='Disable jit option to loss function.')
+parser.add_argument('--no-time-tag', dest='time_tag', action='store_false',
+                    help='Omit the time tag from experiment name.')
 parser.add_argument('--quiet', action='store_true',
                     help='Quite mode (No training logs)')
 args = parser.parse_args()
