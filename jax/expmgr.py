@@ -51,7 +51,7 @@ def init(project, name, config):
 def get_result_dir():
     tag = f'{project_name}_{exp_name}'
     if DATETIME is not None:
-        tag = f'{DATETIME}_{tag}'
+        tag = f'{DATETIME.strftime(FORMAT)}_{tag}'
     exp_dir = Path(EXP_BASE_DIR) / tag
     if not exp_dir.exists():
         exp_dir.mkdir(parents=True)
