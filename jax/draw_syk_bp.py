@@ -26,9 +26,9 @@ def iterate_artifacts(project, target_cfgs=None):
 
 
 def download_from_wandb(resdir, n_qubits):
-    project = 'IsingBP'
+    project = 'SYK4BP'
     grads_results = {}
-    target_cfgs = {'config.n_qubits': n_qubits, 'config.g': 2, 'config.h': 0}
+    target_cfgs = {'config.n_qubits': n_qubits, 'config.seed_SYK': 17}
 
     print(f'Downloading experiment results from {project}')
     print(f'| Results directory : {resdir}')
@@ -53,9 +53,6 @@ def download_from_wandb(resdir, n_qubits):
             name = f'{run.config["n_qubits"]} Qubits'
             vals = retrieve_values_from_name(fname)
             n_layers = int(vals[1])  # vals = Q, L, BS, g, h
-            if n_layers < 2:
-                print('Skip 1 layer!!')
-                continue
             print(f'| {name} and {n_layers} Layers', end=' ')
             if name not in grads_results:
                 grads_results[name] = {}
@@ -69,7 +66,7 @@ def download_from_wandb(resdir, n_qubits):
     print('Merging the obtained results...')
     for name in grads_results:
         for n_layers, res in grads_results[name].items():
-            rname = f'{name}_{n_layers}L_g{target_cfgs["config.g"]}_h{target_cfgs["config.h"]}'
+            rname = f'{name}_{n_layers}L_SYK{target_cfgs["config.seedSYK"]}'
             print(f'{rname}: ', end='')
             res = np.vstack(res)
             print(f'n_samples, n_dims={res.shape}')
@@ -158,7 +155,7 @@ def draw_grad_var_with_variance(resdir, n_qubits_list, linestyles, n_samples=500
     axes.spines['right'].set_visible(False)
     axes.spines['top'].set_visible(False)
     plt.tight_layout()
-    plt.savefig('fig/ising_bp_grad_var.pdf')
+    plt.savefig('fig/syk_bp_grad_var.pdf')
     plt.show()
 
 
@@ -167,7 +164,6 @@ def draw_grad_norm_with_shading(resdir, n_qubits_list, linestyles, n_samples=500
     for i, n_qubits in enumerate(n_qubits_list):
         label = f'{n_qubits} Qubits'
         df = load_df(resdir, label, n_samples=n_samples)
-        df.to_pickle(resdir / f'Q{n_qubits}.pkl')
         plt.plot(df.n_layers, df.grad_norm_mean, linestyles[i],
                  linewidth=1.2, alpha=1.,
                  markersize=5,
@@ -190,19 +186,21 @@ def draw_grad_norm_with_shading(resdir, n_qubits_list, linestyles, n_samples=500
     axes.spines['right'].set_visible(False)
     axes.spines['top'].set_visible(False)
     plt.tight_layout()
-    plt.savefig('fig/ising_bp_grad_norm.pdf')
+    plt.savefig('fig/sky_bp_grad_norm.pdf')
     plt.show()
 
 
 def main():
     global _IGNORE_DATASET_ERROR
     _IGNORE_DATASET_ERROR = True
-    resdir = Path(f'results_ising_bp/{datetime.now().strftime("%Y%m%d")}')
+    resdir = Path(f'results_syk_bp/{datetime.now().strftime("%Y%m%d")}')
     linestyles = ['-o', '-.o', '--o', ':o']
     n_samples = 5000
-    n_qubits_list = [4, 6, 8, 10]
-    for i, n_qubits in enumerate(n_qubits_list):
-        download_from_wandb(resdir, n_qubits)
+    n_qubits_list = [4, 6, 8]
+    # Enable if data correctly uploaded to wandb cloud.
+    # Otherwise, use the locally stored files.
+    # for i, n_qubits in enumerate(n_qubits_list):
+    #     download_from_wandb(resdir, n_qubits)
 
     draw_grad_var_with_variance(
         resdir, n_qubits_list, linestyles,
