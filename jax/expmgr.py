@@ -24,7 +24,7 @@ _verbose = 1
 
 
 def init(project, name, config):
-    global project_name, exp_name, _verbose
+    global project_name, exp_name, _verbose, DATETIME
     project_name = project
     exp_name = name
     if getattr(config, 'quiet', False):
@@ -34,6 +34,10 @@ def init(project, name, config):
     if config.jax_enable_x64:
         print('Enabling jax x64 option')
         jax.config.update("jax_enable_x64", True)
+
+    if not config.time_tag:
+        print('Omit the time information from experiment tag')
+        DATETIME = None
 
     wandb.init(
         project=project_name,
@@ -45,11 +49,9 @@ def init(project, name, config):
 
 
 def get_result_dir():
-    tag = DATETIME.strftime(FORMAT)
-    if project_name:
-        tag = f'{tag}_{project_name}'
-    if exp_name:
-        tag = f'{tag}_{exp_name}'
+    tag = f'{project_name}_{exp_name}'
+    if DATETIME is not None:
+        tag = f'{DATETIME.strftime(FORMAT)}_{tag}'
     exp_dir = Path(EXP_BASE_DIR) / tag
     if not exp_dir.exists():
         exp_dir.mkdir(parents=True)

@@ -125,6 +125,7 @@ def get_optimizer(name, optim_args, scheduler):
         init_fun, update_fun, get_params = optimizers.nesterov(scheduler, **optim_args)
     else:
         raise ValueError(f'An optimizer {name} is not supported. ')
+    print(f'Loaded an optimization {name} - {optim_args}')
     return init_fun, update_fun, get_params
 
 
@@ -145,6 +146,7 @@ def get_scheduler(lr, train_steps, name='constant'):
     else:
         raise ValueError(f'Not supported scheduler {name}.'
                          f'Supported schedulers={supported_schedulers()}')
+    print(f'Loaded a scheduler {name} - {scheduler}')
     return scheduler
 
 
