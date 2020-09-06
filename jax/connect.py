@@ -18,17 +18,18 @@ import expmgr
 import qnnops
 
 
-def get_beizer_curve(num_bends=1):
+def get_beizer_curve(n_bends=3):
     """ Get a function of Beizer curve having n bends.
 
     Args:
-        num_bends: int, number of trainable bends between two target points.
+        n_bends: int, number of bends including endpoints.
     Returns:
         callable, a function of time t in [0, 1] maps to coefficients.
     """
-    n = jnp.arange(num_bends)
-    n_rev = num_bends - 1 - n
-    coef = binom(num_bends - 1, n)  # binomial coefficients
+
+    n = jnp.arange(n_bends)
+    n_rev = n_bends - 1 - n
+    coef = binom(n_bends - 1, n)  # binomial coefficients
 
     def parametric_beizer_curve(t, bends):  # bends: (num_bends, nL)
         if not jnp.isscalar(t):
@@ -39,9 +40,17 @@ def get_beizer_curve(num_bends=1):
     return parametric_beizer_curve
 
 
+def save_checkpoints(tag, step, w1, w2, params, history, optimizer_state):
+    bends = jnp.vstack([w1, params, w2])
+    expmgr.save_array(f'bends_{tag}.npy', bends)
+    expmgr.save_array(f'bends_{tag}.npy', bends)
+    qnnops.save_checkpoint(
+        f'checkpoint_{tag}.pkl', step, optimizer_state, history)
+
+
 def find_connected_curve(
         w1, w2, loss_fn,
-        num_bends=3,
+        n_bends=3,
         train_steps=100,
         lr=0.05,
         scheduler_name='constant',
@@ -55,7 +64,7 @@ def find_connected_curve(
         w1: jnp.array, the first local minima
         w2: jnp.array, the second local minima
         loss_fn: callable,
-        num_bends: int, number of bends
+        n_bends: int, number of bends between endpoints
         train_steps: int, number of training steps
         lr: float, initial learning rate
         scheduler_name: str, scheduler name
@@ -69,20 +78,21 @@ def find_connected_curve(
     """
 
     print('Find a curve connecting two local minimas')
-    curve = get_beizer_curve(num_bends)
+    curve = get_beizer_curve(n_bends + 2)  # includes the endpoints
 
-    @jax.jit
     def curve_loss(t_, params_):  # t_ should be (m,) vector.
+        params_ = jnp.vstack([w1, params_, w2])
         c = curve(t_, params_)
-        l = 0
+        loss_sum = 0
         for c_ in c:
-            l += loss_fn(c_)
-        return l / float(len(t_))
+            loss_sum += loss_fn(c_)
+        return loss_sum / float(len(t_))
 
-    # differentiate the 2nd argument _bends
+    # differentiate the 2nd argument
+    print('Get the gradient of the loss function')
     grad_loss_fn = jax.value_and_grad(curve_loss, argnums=1)
     if use_jit:
-        print('jit compilation')
+        print('Use jit compilation')
         grad_loss_fn = jax.jit(grad_loss_fn)
 
     start_step = 0
@@ -92,50 +102,49 @@ def find_connected_curve(
     scheduler = qnnops.get_scheduler(lr, scheduler_name)
     init_fun, update_fun, get_params = qnnops.get_optimizer('adam', None, scheduler)
     # Pick evenly divided points from the line segment between w1 and w2.
-    alpha = jnp.linspace(0, 1, num_bends + 2)
+    alpha = jnp.linspace(0, 1, n_bends + 2)
+
     init_bends = jnp.vstack([
         alpha[i] * w1 + (1 - alpha[i]) * w2
-        for i in range(1, num_bends + 1)
+        for i in range(1, n_bends + 1)
     ])
-    optimizer_state = init_fun(init_bends)
 
+    print('State initialization')
+    optimizer_state = init_fun(init_bends)
+    params = get_params(optimizer_state)
     rng = jax.random.PRNGKey(seed)
+
     for step in range(start_step, train_steps):
-        params = get_params(optimizer_state)
         rng, key = jax.random.split(rng)
+
         # Loss = E[ L(\phi_\theta(t))]  where t ~ Unif(0, 1)
         t = jax.random.uniform(key, (batch_size,))
         loss, grad = grad_loss_fn(t, params)
         optimizer_state = update_fun(step, grad, optimizer_state)
-        updated_params = get_params(optimizer_state)
-        grad = onp.array(grad)
-        params = onp.array(params)
-        updated_params = onp.array(updated_params)
-        history['loss'].append(loss)
-        history['grad'].append(grad)
-        history['params'].append(params)
+        params = get_params(optimizer_state)
+
+        history['loss'].append(loss.item())  # scalar?
+        history['grad'].append(onp.array(grad))
+        history['params'].append(onp.array(params))
+
         if loss < min_loss:
             min_loss = loss
-            expmgr.save_array('params_best.npy', updated_params)
-            qnnops.save_checkpoint('checkpoint_best.pkl', step, optimizer_state, history)
+            save_checkpoints('best', step, w1, w2, params, history, optimizer_state)
 
         if step % log_every == 0:
             grad_norm = jnp.linalg.norm(grad).item()
-            logging_output = OrderedDict(loss=loss.item(), lr=scheduler(step), grad_norm=grad_norm)
-            # if monitor is not None:
-            #     logging_output.update(monitor(params=params))
+            logging_output = OrderedDict(
+                loss=loss.item(), lr=scheduler(step), grad_norm=grad_norm)
             logging_output['min_loss'] = min_loss.item()
             expmgr.log(step, logging_output)
-            expmgr.save_array('params_last.npy', updated_params)
-            qnnops.save_checkpoint('checkpoint_last.pkl', step, optimizer_state, history)
+            save_checkpoints('last', step, w1, w2, params, history, optimizer_state)
 
         del loss, grad
         gc.collect()
 
 
 def download_checkpoints(resdir, **kwargs):
-    if not isinstance(resdir, Path):
-        resdir = Path(resdir)
+    resdir = Path(resdir)
     ising_project = 'IsingModel'
     api = wandb.Api()
     filters = {f'config.{k}': v for k, v in kwargs.items()}
@@ -151,7 +160,8 @@ def download_checkpoints(resdir, **kwargs):
             continue  # skip the seed that has seen before.
 
         params_file = run.file('params_best.npy')
-        params_file.download(resdir / run.name)
+        print(f'| Download {run.name} / {params_file.name}')
+        params_file.download(resdir / run.name, replace=True)
         params_paths.append(resdir / run.name / params_file.name)
         if len(params_paths) == 2:
             break
@@ -174,8 +184,8 @@ def main():
                         help='Transverse magnetic field')
     parser.add_argument('--h', type=float, metavar='M', required=True,
                         help='Longitudinal magnetic field')
-    parser.add_argument('--num-bends', type=int, metavar='M', default=3,
-                        help='Number of bends')
+    parser.add_argument('--n-bends', type=int, metavar='N', default=3,
+                        help='Number of bends between endpoints')
     parser.add_argument('--train-steps', type=int, metavar='N', default=int(1e3),
                         help='Number of training steps. (Default: 1000)')
     parser.add_argument('--batch-size', type=int, metavar='N', default=8,
@@ -186,6 +196,8 @@ def main():
                         help='Logging every N steps. (Default: 1)')
     parser.add_argument('--seed', type=int, metavar='N', required=True,
                         help='Random seed. For reproducibility, the value is set explicitly.')
+    parser.add_argument('--model-seeds', type=int, metavar='N', nargs=2, required=True,
+                        help='Random seed used for model training.')
     parser.add_argument('--exp-name', type=str, metavar='NAME', default=None,
                         help='Experiment name.')
     parser.add_argument('--scheduler-name', type=str, metavar='NAME',
@@ -206,14 +218,25 @@ def main():
 
     n_qubits, n_layers = args.n_qubits, args.n_layers
     if args.exp_name is None:
-        args.exp_name = f'Q{n_qubits}L{n_layers}_nB{args.num_bends}'
+        args.exp_name = f'Q{n_qubits}L{n_layers}_nB{args.n_bends}'
+
+    if args.model_seeds is None:
+        params_start, params_end = args.params_start, args.params_end
+    else:
+        params_start, params_end = download_checkpoints(
+            'checkpoints',
+            n_qubits=n_qubits, n_layers=n_layers,
+            lr=0.05,  # fixed lr that we used in training
+            seed={'$in': args.model_seeds})
 
     print('Initializing project')
     expmgr.init('ModeConnectivity', args.exp_name, args)
 
     print('Loading pretrained models')
-    w1 = jnp.load(args.params_start)
-    w2 = jnp.load(args.params_end)
+    w1 = jnp.load(params_start)
+    w2 = jnp.load(params_end)
+    expmgr.save_array('endpoint_begin.npy', w1)
+    expmgr.save_array('endpoint_end.npy', w2)
 
     print('Constructing Hamiltonian matrix')
     ham_matrix = qnnops.ising_hamiltonian(n_qubits=n_qubits, g=args.g, h=args.h)
@@ -227,19 +250,16 @@ def main():
 
     find_connected_curve(
         w1, w2, loss_fn,
-        num_bends=args.num_bends,
+        n_bends=args.n_bends,
         train_steps=args.train_steps,
         lr=args.lr,
         scheduler_name=args.scheduler_name,
         batch_size=args.batch_size,
         log_every=1,
         seed=args.seed,
-        use_jit=False
+        use_jit=args.use_jit
     )
 
 
 if __name__ == '__main__':
-    # download_checkpoints(
-    #     'checkpoints',
-    #     n_qubits=8, n_layers=80, lr=0.05, seed={'$in': [1, 3]})
     main()
