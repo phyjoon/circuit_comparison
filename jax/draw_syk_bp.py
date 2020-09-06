@@ -199,8 +199,8 @@ def main():
     n_qubits_list = [4, 6, 8]
     # Enable if data correctly uploaded to wandb cloud.
     # Otherwise, use the locally stored files.
-    # for i, n_qubits in enumerate(n_qubits_list):
-    #     download_from_wandb(resdir, n_qubits)
+    for i, n_qubits in enumerate(n_qubits_list):
+        download_from_wandb(resdir, n_qubits)
 
     draw_grad_var_with_variance(
         resdir, n_qubits_list, linestyles,
