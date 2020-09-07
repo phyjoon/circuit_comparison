@@ -1,7 +1,7 @@
 """ Drawing Hessian spectrum plots
 
 Usage examples
- $ python hessian_spectrum.py --n-qubits 6 --n-layers-list 6 12 --lr 0.05
+ $ python draw_hessian_spectrum.py --n-qubits 6 --n-layers-list 6 12 --lr 0.05
 
 """
 import argparse
@@ -64,17 +64,16 @@ def get_loss_fn(ham_matrix, n_qubits, n_layers, rot_axis):
     return loss
 
 
-def compute_hessian_eigenvalues(func, x):
+def compute_hessian_eigenvalues(hessian_fn, x):
     """ Compute eigenvalues of given cost function.
 
     Args:
-        func: Callable, a cost function whose Hessian is to be computed.
+        hessian_fn: Callable, the hessian function of the cost function.
         x: array, vector where to compute Hessian.
 
     Returns:
         DeviceArray, eigenvalues.
     """
-    hessian_fn = jax.hessian(func)
     hessian_mat = hessian_fn(x)
     eigvals = jnp.linalg.eigvals(hessian_mat)
     # All eigenvalues of a hessian matrix must be real
@@ -91,6 +90,7 @@ def plot_histogram(eigenvalues, save_path=None):
     if save_path:
         plt.tight_layout()
         plt.savefig(save_path)
+    plt.close()
     return eigenvalues
 
 
@@ -101,6 +101,7 @@ def plot_spectrum(eigenvalues, save_path=None):
     if save_path:
         plt.tight_layout()
         plt.savefig(save_path)
+    plt.close()
     return eigenvalues
 
 
@@ -125,8 +126,8 @@ def get_arguments():
 def main():
     args = get_arguments()
     project = args.project
-    n_qubits, g, h = args.n_qubits, 2., 0.
-    filters = dict(n_qubits=n_qubits)
+    n_qubits, g, h = args.n_qubits, 2, 0
+    filters = dict(n_qubits=n_qubits, g=g, h=h)
     if args.n_layers_list is not None:
         print(f'Add [n_layers] filter: {args.n_layers_list}')
         filters['n_layers'] = {'$in': args.n_layers_list}
@@ -139,12 +140,16 @@ def main():
     ham_matrix = qnnops.ising_hamiltonian(n_qubits, g, h)
 
     print('Hessian spectrum')
+    hess_fns = {}
     for cfg, fpath in opt_circuits:
         print(f'| computing hessian of {fpath}')
         params = jnp.load(fpath)
-        loss_fn = get_loss_fn(ham_matrix, n_qubits,
-                              cfg['n_layers'], cfg['rot_axis'])
-        _, hess_eigvals = compute_hessian_eigenvalues(loss_fn, params)
+        circuit_name = f'Q{n_qubits}-L{cfg["n_layers"]}-R{cfg["rot_axis"]}'
+        if circuit_name not in hess_fns:
+            loss_fn = get_loss_fn(
+                ham_matrix, n_qubits, cfg['n_layers'], cfg['rot_axis'])
+            hess_fns[circuit_name] = jax.hessian(loss_fn)
+        _, hess_eigvals = compute_hessian_eigenvalues(hess_fns[circuit_name], params)
 
         name = get_normalized_name(cfg)
         jnp.savez(
