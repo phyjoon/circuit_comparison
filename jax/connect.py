@@ -99,7 +99,7 @@ def find_connected_curve(
     history = {'loss': [], 'grad': [], 'params': []}
     min_loss = float('inf')
 
-    scheduler = qnnops.get_scheduler(lr, scheduler_name)
+    scheduler = qnnops.get_scheduler(lr, train_steps, name=scheduler_name)
     init_fun, update_fun, get_params = qnnops.get_optimizer('adam', None, scheduler)
     # Pick evenly divided points from the line segment between w1 and w2.
     alpha = jnp.linspace(0, 1, n_bends + 2)
