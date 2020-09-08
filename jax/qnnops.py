@@ -233,10 +233,10 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
     except Exception as e:
         print(e)
         print('Saving history object...')
-        jnp.savez(expmgr.get_result_path('history.npz'), **history)
+        expmgr.save_history('history.npz', history)
         raise e
     else:
-        jnp.savez(expmgr.get_result_path('history.npz'), **history)
+        expmgr.save_history('history.npz', history)
     return get_params(optimizer_state), history
 
 

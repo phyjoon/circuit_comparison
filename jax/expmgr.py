@@ -124,6 +124,14 @@ def save_array(filename, arr, upload_to_wandb=True):
         safe_wandb_save(filepath)
 
 
+def save_history(filename, history, upload_to_wandb=True):
+    """ Save jax array zip. """
+    filepath = str(get_result_path(filename))
+    jnp.savez(filepath, **history)
+    if upload_to_wandb:
+        safe_wandb_save(filepath)
+
+
 def safe_wandb_save(filepath):
     filepath = str(filepath)
     try:
