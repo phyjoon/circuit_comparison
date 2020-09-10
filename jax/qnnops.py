@@ -233,10 +233,10 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
     except Exception as e:
         print(e)
         print('Saving history object...')
-        jnp.savez(expmgr.get_result_path('history.npz'), **history)
+        expmgr.save_history('history.npz', history)
         raise e
     else:
-        jnp.savez(expmgr.get_result_path('history.npz'), **history)
+        expmgr.save_history('history.npz', history)
     return get_params(optimizer_state), history
 
 
@@ -362,3 +362,12 @@ def SYK_hamiltonian(rng, n_qubits):
         ham_matrix += (couplings[idx] / 4) * jnp.linalg.multi_dot([gamma_matrices[x], gamma_matrices[y], gamma_matrices[w], gamma_matrices[z]])
         
     return ham_matrix
+
+
+def memory_efficient_hessian(f):
+    def hessian_fn(x):
+        _, hvp = jax.linearize(jax.grad(f), x)
+        hvp = jax.jit(hvp)  # seems like a substantial speedup to do this
+        basis = jnp.eye(jnp.prod(x.shape)).reshape(-1, *x.shape)
+        return jnp.stack([hvp(e) for e in basis]).reshape(x.shape + x.shape)
+    return hessian_fn
