@@ -209,7 +209,7 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
             params = get_params(optimizer_state)
             if use_jacfwd:
                 loss = loss_fn(params, **loss_args)
-                grad = grad_loss_fn(grad_loss_fn, **loss_args)
+                grad = grad_loss_fn(params, **loss_args)
             else:
                 # for backward compatibility. It will be replaced by
                 # jax.grad to make the consistency with jax.jacfwd.
