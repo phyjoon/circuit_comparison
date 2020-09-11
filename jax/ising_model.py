@@ -52,6 +52,8 @@ parser.add_argument('--no-time-tag', dest='time_tag', action='store_false',
                     help='Omit the time tag from experiment name.')
 parser.add_argument('--quiet', action='store_true',
                     help='Quite mode (No training logs)')
+parser.add_argument('--use-jacfwd', dest='use_jacfwd', action='store_true',
+                    help='Enable the forward mode gradient computation (jacfwd).')
 args = parser.parse_args()
 
 
@@ -62,6 +64,7 @@ g, h = args.g, args.h
 if not args.exp_name:
     args.exp_name = f'Q{n_qubits}L{n_layers}R{rot_axis}BS{block_size} - g{g}h{h} - S{seed} - LR{args.lr}'
 expmgr.init(project='IsingModel', name=args.exp_name, config=args)
+# expmgr.init(project='test-project', name=args.exp_name, config=args)
 
 # Construct the hamiltonian matrix of Ising model.
 ham_matrix = qnnops.ising_hamiltonian(n_qubits=n_qubits, g=g, h=h)
@@ -115,7 +118,9 @@ trained_params, _ = qnnops.train_loop(
     scheduler_name=args.scheduler_name,
     monitor=monitor,
     checkpoint_path=args.checkpoint_path,
-    use_jit=args.use_jit)
+    use_jit=args.use_jit,
+    use_jacfwd=args.use_jacfwd,
+)
 
 optimized_state = circuit(trained_params)
 expmgr.log_array(optimized_state=optimized_state)

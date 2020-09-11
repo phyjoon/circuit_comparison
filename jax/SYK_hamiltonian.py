@@ -54,6 +54,8 @@ parser.add_argument('--no-time-tag', dest='time_tag', action='store_false',
                     help='Omit the time tag from experiment name.')
 parser.add_argument('--quiet', action='store_true',
                     help='Quite mode (No training logs)')
+parser.add_argument('--use-jacfwd', dest='use_jacfwd', action='store_true',
+                    help='Enable the forward mode gradient computation (jacfwd).')
 args = parser.parse_args()
 
 
@@ -140,7 +142,8 @@ trained_params, _ = qnnops.train_loop(
     optimizer_name=args.optimizer_name, optimizer_args=args.optimizer_args,
     scheduler_name=args.scheduler_name,
     monitor=monitor, checkpoint_path=args.checkpoint_path,
-    use_jit=args.use_jit
+    use_jit=args.use_jit,
+    use_jacfwd=args.use_jacfwd,
 )
 
 optimized_state = circuit(trained_params)
