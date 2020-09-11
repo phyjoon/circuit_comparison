@@ -154,7 +154,8 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
                optimizer_name='adam', optimizer_args=None,
                scheduler_name='constant',
                loss_args=None, early_stopping=False, monitor=None,
-               log_every=1, checkpoint_path=None, use_jit=True):
+               log_every=1, checkpoint_path=None, use_jit=True,
+               use_jacfwd=False):
     """ Training loop.
 
     Args:
@@ -173,6 +174,10 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
         log_every: int, logging every N steps.
         checkpoint_path: str, a checkpoint file path to resume.
         use_jit: bool, whether to use jit compilation.
+        use_jacfwd: bool, enable the forward mode jax.jacfwd for gradient
+            computation instead the reverse mode jax.grad (jax.jacrev)
+            For backward compatibility, this option disables by default.
+            But, later it will enable. (Default: False)
     Returns:
         params: jnp.array, optimized parameters
         history: dict, training history.
@@ -194,12 +199,21 @@ def train_loop(loss_fn, init_params, train_steps=int(1e4), lr=0.01,
         min_loss = float('inf')
 
     try:
-        grad_loss_fn = jax.value_and_grad(loss_fn)
+        if use_jacfwd:
+            grad_loss_fn = jax.jacfwd(loss_fn)
+        else:
+            grad_loss_fn = jax.value_and_grad(loss_fn)
         if use_jit:
             grad_loss_fn = jax.jit(grad_loss_fn)
         for step in range(start_step, train_steps):
             params = get_params(optimizer_state)
-            loss, grad = grad_loss_fn(params, **loss_args)
+            if use_jacfwd:
+                loss = loss_fn(params, **loss_args)
+                grad = grad_loss_fn(grad_loss_fn, **loss_args)
+            else:
+                # for backward compatibility. It will be replaced by
+                # jax.grad to make the consistency with jax.jacfwd.
+                loss, grad = grad_loss_fn(params, **loss_args)
             optimizer_state = update_fun(step, grad, optimizer_state)
             updated_params = get_params(optimizer_state)
 
@@ -324,6 +338,7 @@ def ising_hamiltonian(n_qubits, g, h):
                                    jnp.eye(2 ** (n_qubits - 1 - i)))
     return ham_matrix
 
+
 def SYK_hamiltonian(rng, n_qubits):
     """ Construct the hamiltonian matrix of Ising model.
 
@@ -337,30 +352,31 @@ def SYK_hamiltonian(rng, n_qubits):
 
     for k in range(n_gamma):
         temp = jnp.eye(1)
-        
-        for j in range(k//2):
+
+        for j in range(k // 2):
             temp = jnp.kron(temp, PauliBasis[3])
-            
+
         if k % 2 == 0:
             temp = jnp.kron(temp, PauliBasis[1])
         else:
             temp = jnp.kron(temp, PauliBasis[2])
-            
-        for i in range(int(n_gamma/2) - (k//2) - 1):
+
+        for i in range(int(n_gamma / 2) - (k // 2) - 1):
             temp = jnp.kron(temp, PauliBasis[0])
-            
+
         gamma_matrices.append(temp)
 
     # Number of SYK4 interaction terms
-    n_terms = int(factorial(n_gamma) / factorial(4) / factorial(n_gamma - 4)) 
+    n_terms = int(factorial(n_gamma) / factorial(4) / factorial(n_gamma - 4))
 
     # SYK4 random coupling
-    couplings = jax.random.normal(key=rng, shape=(n_terms, ), dtype=jnp.float64) * jnp.sqrt(6 / (n_gamma ** 3))
+    couplings = jax.random.normal(key=rng, shape=(n_terms,), dtype=jnp.float64) * jnp.sqrt(6 / (n_gamma ** 3))
 
     ham_matrix = 0
     for idx, (x, y, w, z) in enumerate(combinations(range(n_gamma), 4)):
-        ham_matrix += (couplings[idx] / 4) * jnp.linalg.multi_dot([gamma_matrices[x], gamma_matrices[y], gamma_matrices[w], gamma_matrices[z]])
-        
+        ham_matrix += (couplings[idx] / 4) * jnp.linalg.multi_dot(
+            [gamma_matrices[x], gamma_matrices[y], gamma_matrices[w], gamma_matrices[z]])
+
     return ham_matrix
 
 
@@ -370,4 +386,49 @@ def memory_efficient_hessian(f):
         hvp = jax.jit(hvp)  # seems like a substantial speedup to do this
         basis = jnp.eye(jnp.prod(x.shape)).reshape(-1, *x.shape)
         return jnp.stack([hvp(e) for e in basis]).reshape(x.shape + x.shape)
+
     return hessian_fn
+
+
+def add_circuit_arguments(parser):
+    group = parser.add_argument_group('Circuit Options')
+    group.add_argument('--n-qubits', type=int, metavar='N', required=True,
+                       help='Number of qubits')
+    group.add_argument('--n-layers', type=int, metavar='N', required=True,
+                       help='Number of alternating layers')
+    group.add_argument('--rot-axis', type=str, metavar='R', required=True,
+                       choices=['x', 'y', 'z'],
+                       help='Direction of rotation gates.')
+
+
+def add_optimizer_arguments(parser):
+    group = parser.add_argument_group('Optimization Options')
+    group.add_argument(
+        '--train-steps', type=int, metavar='N', default=1000,
+        help='Number of training steps. (Default: 1000)')
+    group.add_argument(
+        '--lr', type=float, metavar='LR', default=0.05,
+        help='Initial value of learning rate. (Default: 0.05)')
+    group.add_argument(
+        '--optimizer-name', type=str, metavar='NAME', default='adam',
+        help='Optimizer name. Supports: adam, nesterov, sgd (Default: adam)')
+    group.add_argument(
+        '--optimizer-args', type=str, metavar='STR', default=None,
+        help='Additional arguments for the chosen optimizer.\n'
+             'For instance, --optimizer-name=nesterov --optimizer-args="mass:0.1"'
+             ' or --optimizer-name=adam --optimizer-args="eps:1e-8,b1:0.9,b2:0.999"'
+             ' (Default: None)')
+    group.add_argument(
+        '--scheduler-name', type=str, metavar='NAME', default='constant',
+        help=f'Scheduler name. Supports: {supported_schedulers()} '
+             f'(Default: constant)')
+    group.add_argument(
+        '--checkpoint-path', type=str, metavar='PATH', default=None,
+        help='A checkpoint file path to resume')
+    group.add_argument(
+        '--log-every', type=int, metavar='N', default=1,
+        help='Logging every N steps. (Default: 1)')
+    group.add_argument(
+        '--no-jacfwd', dest='use_jacfwd', action='store_false',
+        help='Disable the forward mode gradient computation (jacfwd)'
+             'and use the reversed mode jax.grad (equivalently jax.jacrev).')
