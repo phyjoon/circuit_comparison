@@ -41,6 +41,8 @@ parser.add_argument('--no-time-tag', dest='time_tag', action='store_false',
                     help='Omit the time tag from experiment name.')
 parser.add_argument('--exp-name', type=str, metavar='NAME', default=None,
                     help='Experiment name. If None, the default format will be used.')
+parser.add_argument('--version', type=int, default=1, choices=[1, 2],
+                    help='qnnops version (Default: 1)')
 args = parser.parse_args()
 
 seed = args.seed

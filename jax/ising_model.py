@@ -54,6 +54,8 @@ parser.add_argument('--quiet', action='store_true',
                     help='Quite mode (No training logs)')
 parser.add_argument('--use-jacfwd', dest='use_jacfwd', action='store_true',
                     help='Enable the forward mode gradient computation (jacfwd).')
+parser.add_argument('--version', type=int, default=1, choices=[1, 2],
+                    help='qnnops version (Default: 1)')
 args = parser.parse_args()
 
 
@@ -63,8 +65,8 @@ block_size = n_qubits
 g, h = args.g, args.h
 if not args.exp_name:
     args.exp_name = f'Q{n_qubits}L{n_layers}R{rot_axis}BS{block_size} - g{g}h{h} - S{seed} - LR{args.lr}'
-expmgr.init(project='IsingModel', name=args.exp_name, config=args)
-# expmgr.init(project='test-project', name=args.exp_name, config=args)
+# expmgr.init(project='IsingModel', name=args.exp_name, config=args)
+expmgr.init(project='test-project', name=args.exp_name, config=args)
 
 # Construct the hamiltonian matrix of Ising model.
 ham_matrix = qnnops.ising_hamiltonian(n_qubits=n_qubits, g=g, h=h)
