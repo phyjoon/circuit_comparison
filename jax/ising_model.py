@@ -65,8 +65,8 @@ block_size = n_qubits
 g, h = args.g, args.h
 if not args.exp_name:
     args.exp_name = f'Q{n_qubits}L{n_layers}R{rot_axis}BS{block_size} - g{g}h{h} - S{seed} - LR{args.lr}'
-# expmgr.init(project='IsingModel', name=args.exp_name, config=args)
-expmgr.init(project='test-project', name=args.exp_name, config=args)
+expmgr.init(project='IsingModel', name=args.exp_name, config=args)
+# expmgr.init(project='test-project', name=args.exp_name, config=args)
 
 # Construct the hamiltonian matrix of Ising model.
 ham_matrix = qnnops.ising_hamiltonian(n_qubits=n_qubits, g=g, h=h)
