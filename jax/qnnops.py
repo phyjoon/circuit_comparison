@@ -18,6 +18,8 @@ from math import factorial
 
 jax.config.update("jax_enable_x64", True)
 
+version = expmgr.version()
+
 
 def create_target_states(n_qubits, n_samples, seed=None):
     """ Create multiple target states with given qubit number.
@@ -63,6 +65,12 @@ def state_norm(state):
 
 
 def block(params, qubits, state, n_qubit, rot_axis='Y'):
+    if version == 1:  # version 1 (old) or 2
+        return block_v1(params, qubits, state, n_qubit, rot_axis)
+    return block_v2(params, qubits, state, n_qubit, rot_axis)
+
+
+def block_v1(params, qubits, state, n_qubit, rot_axis='Y'):
     rot_axis = rot_axis.upper()
     if rot_axis == 'X':
         rotation_gate = gates.rx
@@ -84,6 +92,34 @@ def block(params, qubits, state, n_qubit, rot_axis='Y'):
 
     for control, target in entangler_pairs:
         state = gates.cz_gate(n_qubit, control, target) @ state
+
+    return state
+
+
+def block_v2(params, qubits, state, n_qubit, rot_axis='Y'):
+    rot_axis = rot_axis.upper()
+    if rot_axis == 'X':
+        rotation_gate = gates.rx
+    elif rot_axis == 'Y':
+        rotation_gate = gates.ry
+    elif rot_axis == 'Z':
+        rotation_gate = gates.rz
+    else:
+        raise ValueError("rot_axis should be either 'X', 'Y', or 'Z'.")
+
+    # Rotation layer
+    for qubit, param in zip(qubits, params):
+        gate = jax.jit(rotation_gate, static_argnums=(1, 2))
+        state = gate(param, n_qubit, qubit) @ state
+
+    # CZ layer
+    entangler_pairs = sorted(
+        itertools.combinations(range(len(qubits)), 2),
+        key=lambda x: abs(x[0] - x[1]), reverse=False)
+
+    for control, target in entangler_pairs:
+        gate = jax.jit(gates.cz_gate, static_argnums=(0, 1, 2))
+        state = gate(n_qubit, control, target) @ state
 
     return state
 

@@ -56,6 +56,8 @@ parser.add_argument('--quiet', action='store_true',
                     help='Quite mode (No training logs)')
 parser.add_argument('--use-jacfwd', dest='use_jacfwd', action='store_true',
                     help='Enable the forward mode gradient computation (jacfwd).')
+parser.add_argument('--version', type=int, default=1, choices=[1, 2],
+                    help='qnnops version (Default: 1)')
 args = parser.parse_args()
 
 

@@ -34,6 +34,8 @@ parser.add_argument('--no-jit', dest='use_jit', action='store_false',
                     help='Disable jit option to loss function.')
 parser.add_argument('--exp-name', type=str, metavar='NAME', default=None,
                     help='Experiment name. If None, the default format will be used.')
+parser.add_argument('--version', type=int, default=1, choices=[1, 2],
+                    help='qnnops version (Default: 1)')
 args = parser.parse_args()
 
 seed, seed_SYK = args.seed, args.seed_SYK

@@ -21,12 +21,21 @@ project_name = None
 exp_name = None
 
 _verbose = 1
+_version = 1
+
+
+def version():
+    return _version
 
 
 def init(project, name, config):
     global project_name, exp_name, _verbose, DATETIME
     project_name = project
     exp_name = name
+
+    global _version
+    _version = getattr(config, 'version', 1)
+
     if getattr(config, 'quiet', False):
         _verbose = 0
     if not hasattr(config, 'jax_enable_x64'):
@@ -34,7 +43,6 @@ def init(project, name, config):
     if config.jax_enable_x64:
         print('Enabling jax x64 option')
         jax.config.update("jax_enable_x64", True)
-
     if not config.time_tag:
         print('Omit the time information from experiment tag')
         DATETIME = None
