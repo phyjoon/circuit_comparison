@@ -113,9 +113,7 @@ def block_v2(params, qubits, state, n_qubit, rot_axis='Y'):
         state = gate(param, n_qubit, qubit) @ state
 
     # CZ layer
-    entangler_pairs = sorted(
-        itertools.combinations(range(len(qubits)), 2),
-        key=lambda x: abs(x[0] - x[1]), reverse=False)
+    entangler_pairs = itertools.combinations(qubits, 2)
 
     for control, target in entangler_pairs:
         gate = jax.jit(gates.cz_gate, static_argnums=(0, 1, 2))
