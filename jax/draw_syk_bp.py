@@ -28,7 +28,9 @@ def iterate_artifacts(project, target_cfgs=None):
 def download_from_wandb(resdir, n_qubits):
     project = 'SYK4BP'
     grads_results = {}
-    target_cfgs = {'config.n_qubits': n_qubits, 'config.seed_SYK': 17}
+    target_cfgs = {'config.n_qubits': n_qubits,
+                   'config.max_n_layers': 260,
+                   'config.seed_SYK': 17}
 
     print(f'Downloading experiment results from {project}')
     print(f'| Results directory : {resdir}')
@@ -66,7 +68,7 @@ def download_from_wandb(resdir, n_qubits):
     print('Merging the obtained results...')
     for name in grads_results:
         for n_layers, res in grads_results[name].items():
-            rname = f'{name}_{n_layers}L_SYK{target_cfgs["config.seedSYK"]}'
+            rname = f'{name}_{n_layers}L_SYK{target_cfgs["config.seed_SYK"]}'
             print(f'{rname}: ', end='')
             res = np.vstack(res)
             print(f'n_samples, n_dims={res.shape}')
@@ -195,8 +197,8 @@ def main():
     _IGNORE_DATASET_ERROR = True
     resdir = Path(f'results_syk_bp/{datetime.now().strftime("%Y%m%d")}')
     linestyles = ['-o', '-.o', '--o', ':o']
-    n_samples = 5000
-    n_qubits_list = [4, 6, 8]
+    n_samples = 1000
+    n_qubits_list = [4, 6, 8, 10]
     # Enable if data correctly uploaded to wandb cloud.
     # Otherwise, use the locally stored files.
     for i, n_qubits in enumerate(n_qubits_list):
