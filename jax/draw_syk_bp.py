@@ -148,6 +148,7 @@ def draw_grad_var_with_variance(resdir, n_qubits_list, linestyles, n_samples=500
     plt.xscale(xscale)
     plt.yscale(yscale)
     # plt.xlim(0, 260)
+    plt.ylim(1e-5, 0.005)
     plt.xlabel(r'$L$', fontsize=13)
     plt.ylabel(r'$\mathrm{Var}\,(\partial_{\theta_i} \, E(\mathbf{\theta}) )$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
@@ -188,7 +189,7 @@ def draw_grad_norm_with_shading(resdir, n_qubits_list, linestyles, n_samples=500
     axes.spines['right'].set_visible(False)
     axes.spines['top'].set_visible(False)
     plt.tight_layout()
-    plt.savefig('fig/sky_bp_grad_norm.pdf')
+    plt.savefig('fig/syk_bp_grad_norm.pdf')
     plt.show()
 
 
