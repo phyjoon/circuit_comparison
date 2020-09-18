@@ -77,10 +77,13 @@ def download_from_wandb(resdir, n_qubits):
     print('Done')
 
 
-def load_df(resdir, label, n_samples=5000):
+def load_df(resdir, label, target_n_layers=None, n_samples=5000):
     records = []
     for f in resdir.iterdir():
         if f.is_file() and f.name.startswith(label):
+            n_layers = int(retrieve_values_from_name(f.name)[1])
+            if target_n_layers is not None and n_layers not in target_n_layers:
+                continue
             grads = np.load(f)
             print(f.name, 'n_samples', len(grads))
             if len(grads) < n_samples:
@@ -111,7 +114,7 @@ def load_df(resdir, label, n_samples=5000):
 
             records.append(
                 dict(
-                    n_layers=int(retrieve_values_from_name(f.name)[1]),
+                    n_layers=n_layers,
                     grad_mean=grads.mean(axis=0)[0],
                     grad_var=grads.var(axis=0)[0],
                     grad_var_mean_over_param=grad_var_mean_over_param,
@@ -131,11 +134,13 @@ def load_df(resdir, label, n_samples=5000):
     return df
 
 
-def draw_grad_var_with_variance(resdir, n_qubits_list, linestyles, n_samples=5000,
+def draw_grad_var_with_variance(resdir, n_qubits_list, linestyles,
+                                target_n_layers=None,
+                                n_samples=5000,
                                 xscale='log', yscale='log'):
     for i, n_qubits in enumerate(n_qubits_list):
         label = f'{n_qubits} Qubits'
-        df = load_df(resdir, label, n_samples=n_samples)
+        df = load_df(resdir, label, n_samples=n_samples, target_n_layers=target_n_layers)
         plt.plot(df.n_layers, df.grad_var_mean_over_param, linestyles[i],
                  linewidth=1.2, alpha=1.,
                  markersize=5,
@@ -149,6 +154,7 @@ def draw_grad_var_with_variance(resdir, n_qubits_list, linestyles, n_samples=500
     plt.xscale(xscale)
     plt.yscale(yscale)
     # plt.xlim(0, 260)
+    plt.ylim(0.005, 1.)
     plt.xlabel(r'$L$', fontsize=13)
     plt.ylabel(r'$\mathrm{Var}\,(\partial_{\theta_i} \, E(\mathbf{\theta}) )$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
@@ -162,11 +168,13 @@ def draw_grad_var_with_variance(resdir, n_qubits_list, linestyles, n_samples=500
     plt.show()
 
 
-def draw_grad_norm_with_shading(resdir, n_qubits_list, linestyles, n_samples=5000,
+def draw_grad_norm_with_shading(resdir, n_qubits_list, linestyles,
+                                target_n_layers=None,
+                                n_samples=5000,
                                 xscale='log', yscale='log'):
     for i, n_qubits in enumerate(n_qubits_list):
         label = f'{n_qubits} Qubits'
-        df = load_df(resdir, label, n_samples=n_samples)
+        df = load_df(resdir, label, n_samples=n_samples, target_n_layers=target_n_layers)
         df.to_pickle(resdir / f'Q{n_qubits}.pkl')
         plt.plot(df.n_layers, df.grad_norm_mean, linestyles[i],
                  linewidth=1.2, alpha=1.,
@@ -204,12 +212,17 @@ def main():
     for i, n_qubits in enumerate(n_qubits_list):
         download_from_wandb(resdir, n_qubits)
 
+    target_n_layers = [2, 4, 8, 16, 32, 64, 128, 256]
     draw_grad_var_with_variance(
         resdir, n_qubits_list, linestyles,
-        n_samples=n_samples, xscale='log', yscale='log')
+        target_n_layers=target_n_layers,
+        n_samples=n_samples,
+        xscale='log', yscale='log')
     draw_grad_norm_with_shading(
         resdir, n_qubits_list, linestyles,
-        n_samples=n_samples, xscale='log', yscale='log')
+        target_n_layers=target_n_layers,
+        n_samples=n_samples,
+        xscale='log', yscale='log')
 
 
 if __name__ == '__main__':
