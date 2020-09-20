@@ -17,18 +17,25 @@ def retrieve_values_from_name(fname):
 
 def download_from_wandb(resdir):
     project = 'SYK4Model'
-    target_cfgs = {
-        # 'config.lr': 0.05,
-        # 'config.scheduler_name': 'constant',
-    }
+    # target_cfgs = {
+    #     'config.lr': 0.05,
+    #     'config.scheduler_name': 'constant',
+    #     'config.seed_SYK': 1
+    # }
     print(f'Downloading experiment results from {project}')
     print(f'| Results directory : {resdir}')
-    print(f'| Target constraints: {target_cfgs}')
+    # print(f'| Target constraints: {target_cfgs}')
 
     api = wandb.Api()
-    runs = api.runs(project, filters=target_cfgs)
+    # runs = api.runs(project, filters=target_cfgs)
+    run_ids = TARGET_RUN_IDS.split('\n')
     records = []
-    for run in runs:
+    visited = set()
+    for run_id in run_ids:
+        if run_id in visited:
+            raise ValueError(f'There is a duplicated run id {run_id}.')
+        run = api.run(f'vqc-quantum/{project}/{run_id.strip()}')
+        visited.add(run_id)
         if run.state == 'finished':
             print(run.name)
             if 'eigenvalues' not in run.config:
@@ -52,6 +59,8 @@ def download_from_wandb(resdir):
             best_step = history.loss.argmin()
             min_energy_gap = np.abs(history.loss[best_step] - ground_state_energy)  # |E(\theta) - E0|
             fidelity = history['fidelity/ground'][best_step]
+            if run.config["n_qubits"] % 4 == 2:  # SYK4 is degenerated.
+                fidelity += history['fidelity/next_to_ground'][best_step]
             loss_threshold = 1e-4
             hitting_time = float('inf')
             for i, row in history.iterrows():
@@ -179,18 +188,63 @@ def draw_convergence_speed(df, linestyles):
 
 def main():
     # Draw L vs. min_loss
-    # datapath = 'results_ising_expressibility/20200830/minloss.pkl'
+    resdir = Path(f'results_syk_vqe/{datetime.now().strftime("%Y%m%d")}')
+    # datapath = resdir / 'minloss.pkl'
     datapath = None
     if datapath:
         df = pd.read_pickle(datapath)
     else:
-        resdir = Path(f'results_syk_expressibility/{datetime.now().strftime("%Y%m%d")}')
+        resdir = Path(resdir)
         df = download_from_wandb(resdir)
 
     linestyles = ['-o', '-.o', '--o', ':o']
     draw_optimization_energy_gap(df, linestyles)
     draw_fidelity(df, linestyles)
     draw_convergence_speed(df, linestyles)
+
+
+TARGET_RUN_IDS = """51vzyt5w
+1iiwwc2s
+2yk3sqgr
+1jg2ugm9
+1yswb81l
+3ss3r7xi
+18qaij9g
+9hr5qpqg
+396lm5vb
+38z0jgt1
+1c8f7jwa
+33vp1cqv
+2h71q1me
+10rpvaap
+3es61gp1
+3ujou9nf
+2jip7auo
+38giwbt9
+3473v16h
+28tut4fn
+2h7o9sr1
+3md7d2g8
+25c4kvc6
+2s8xi4ni
+1rgkqhgr
+3kez2ssw
+2bp76ggs
+2dn3p80o
+266lgh7i
+89radulq
+1k0p0mcv
+2eyxnpay
+1wofm4qi
+3gnvc1f2
+e27u581w
+202sw0yw
+qjrcwtbf
+x5879m11
+37mpqzw0
+xxh8qu4y
+1vo577mm
+23re9wkz"""
 
 
 if __name__ == '__main__':

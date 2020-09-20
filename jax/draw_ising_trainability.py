@@ -19,20 +19,26 @@ def retrieve_values_from_name(fname):
 
 def download_from_wandb(resdir):
     project = 'IsingModel'
-    target_cfgs = {
-        'config.g': 2,
-        'config.h': 0,
-        'config.lr': 0.05,
-        'config.scheduler_name': 'constant',
-    }
+    # target_cfgs = {
+    #     'config.g': 2,
+    #     'config.h': 0,
+    #     'config.lr': 0.05,
+    #     'config.scheduler_name': 'constant',
+    # }
     print(f'Downloading experiment results from {project}')
     print(f'| Results directory : {resdir}')
-    print(f'| Target constraints: {target_cfgs}')
+    # print(f'| Target constraints: {target_cfgs}')
 
     api = wandb.Api()
-    runs = api.runs(project, filters=target_cfgs)
+    # runs = api.runs(project, filters=target_cfgs)
+    run_ids = TARGET_RUN_IDS.split('\n')
     records = []
-    for run in runs:
+    visited = set()
+    for run_id in run_ids:
+        if run_id in visited:
+            raise ValueError(f'There is a duplicated run id {run_id}.')
+        run = api.run(f'vqc-quantum/{project}/{run_id.strip()}')
+        visited.add(run_id)
         if run.state == 'finished':
             print(run.name)
             history = run.history()
@@ -178,6 +184,53 @@ def main():
     draw_optimization_energy_gap(df, linestyles)
     draw_fidelity(df, linestyles)
     draw_convergence_speed(df, linestyles)
+
+
+TARGET_RUN_IDS = """3hhhqcgo
+mw6dp6cv
+196ebwmd
+2ciwlful
+2tc2fb2b
+cnh1o1jq
+32qus3fz
+1ym4keuh
+qzm3j67a
+26q11zoy
+3fyxd8ik
+ct9ose66
+39y31evo
+1tidhmis
+3r02j8z4
+tpyclyd7
+3mg71hyd
+1wrml0by
+2w1tzkou
+hmlqb655
+39eqr76b
+1budogxp
+34lbdf2v
+2hlvzk85
+1k6dfd5g
+m7egdu29
+1bibg2vo
+1u6zfsuy
+1thd9z84
+r8j4po2e
+mir356uz
+19z7iy65
+3d33r432
+3ugcg7sc
+1pabwxo5
+2wtul8to
+1dmgv17l
+d8pdk45i
+2kxoe3rn
+20fva8h4
+2f2k8dby
+1rcprizi
+1oecmvju
+27on46cu
+1qm4910j"""
 
 
 if __name__ == '__main__':
