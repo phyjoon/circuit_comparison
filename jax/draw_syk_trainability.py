@@ -35,6 +35,7 @@ def download_from_wandb(resdir):
         if run_id in visited:
             raise ValueError(f'There is a duplicated run id {run_id}.')
         run = api.run(f'vqc-quantum/{project}/{run_id.strip()}')
+        visited.add(run_id)
         if run.state == 'finished':
             print(run.name)
             if 'eigenvalues' not in run.config:

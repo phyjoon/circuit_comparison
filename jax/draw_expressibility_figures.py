@@ -32,7 +32,7 @@ def download_from_wandb(resdir):
         if run_id in visited:
             raise ValueError(f'There is a duplicated run id {run_id}.')
         run = api.run(f'vqc-quantum/{project}/{run_id.strip()}')
-        visited.add(visited)
+        visited.add(run_id)
         print(run.name)
         history = run.history()
         min_loss = history[history._step < FIRST_N_STEPS].min_loss.min()
@@ -95,7 +95,7 @@ def draw_expressibility(df, linestyles):
                  markersize=5,
                  label=label)
         plt.fill_between(x, y_min, y_max, alpha=0.35)
-    plt.xscale('log')
+    # plt.xscale('log')
     plt.yscale('log')
     plt.xlim(0, 1000)
     plt.xlabel(r'$L$', fontsize=13)
