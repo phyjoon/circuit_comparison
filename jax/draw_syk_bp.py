@@ -6,6 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
+from sklearn.linear_model import LinearRegression
 import wandb
 
 
@@ -14,6 +15,14 @@ _IGNORE_DATASET_ERROR = False
 
 def retrieve_values_from_name(fname):
     return re.findall(r"[-+]?[.]?[\d]+(?:,\d\d\d)*[\.]?\d*(?:[eE][-+]?\d+)?", fname)
+
+
+def regression(df):
+    # df = df[df.n_layers >= 10]
+    x = np.log(df.n_layers.to_numpy())
+    y = np.log(df.grad_norm_mean.to_numpy())
+    reg = LinearRegression().fit(x.reshape(-1, 1), y)
+    return reg.coef_
 
 
 def iterate_artifacts(project, target_cfgs=None):
@@ -76,7 +85,7 @@ def download_from_wandb(resdir, n_qubits):
     print('Done')
 
 
-def load_df(resdir, label, n_samples=5000):
+def load_df(resdir, label, n_samples=1000):
     records = []
     for f in resdir.iterdir():
         if f.is_file() and f.name.startswith(label):
@@ -167,6 +176,8 @@ def draw_grad_norm_with_shading(resdir, n_qubits_list, linestyles, n_samples=500
     for i, n_qubits in enumerate(n_qubits_list):
         label = f'{n_qubits} Qubits'
         df = load_df(resdir, label, n_samples=n_samples)
+        coef = regression(df)
+        print(f'{label}: sloop={coef}')
         plt.plot(df.n_layers, df.grad_norm_mean, linestyles[i],
                  linewidth=1.2, alpha=1.,
                  markersize=5,

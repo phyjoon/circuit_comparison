@@ -119,7 +119,7 @@ def draw_optimization_energy_gap(df, linestyles):
     plt.xlabel(r'$L$', fontsize=13)
     plt.ylabel(r'$| E(\mathbf{\theta}^*) - E_0 |$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
-    plt.legend(loc='right')
+    plt.legend(loc='upper right')
 
     axes = plt.gca()
     axes.spines['right'].set_visible(False)
@@ -147,7 +147,7 @@ def draw_fidelity(df, linestyles):
     plt.xlabel(r'$L$', fontsize=13)
     plt.ylabel(r'$|\,\langle \psi(\mathbf{\theta^*})\, |\, \phi \rangle\, |^2$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
-    plt.legend(loc='right')
+    plt.legend(loc='lower right')
 
     axes = plt.gca()
     axes.spines['right'].set_visible(False)
@@ -187,12 +187,13 @@ def draw_convergence_speed(df, linestyles):
 
 def main():
     # Draw L vs. min_loss
-    datapath = 'results_syk_vqe/20200919/minloss.pkl'
-    # datapath = None
+    resdir = Path(f'results_syk_vqe/{datetime.now().strftime("%Y%m%d")}')
+    # datapath = resdir / 'minloss.pkl'
+    datapath = None
     if datapath:
         df = pd.read_pickle(datapath)
     else:
-        resdir = Path(f'results_syk_vqe/{datetime.now().strftime("%Y%m%d")}')
+        resdir = Path(resdir)
         df = download_from_wandb(resdir)
 
     linestyles = ['-o', '-.o', '--o', ':o']
@@ -232,6 +233,12 @@ TARGET_RUN_IDS = """51vzyt5w
 266lgh7i
 89radulq
 1k0p0mcv
+2eyxnpay
+1wofm4qi
+3gnvc1f2
+e27u581w
+202sw0yw
+qjrcwtbf
 x5879m11
 37mpqzw0
 xxh8qu4y
