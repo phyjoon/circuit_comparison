@@ -95,9 +95,9 @@ def draw_expressibility(df, linestyles):
                  markersize=5,
                  label=label)
         plt.fill_between(x, y_min, y_max, alpha=0.35)
-    # plt.xscale('log')
     plt.yscale('log')
-    plt.xlim(0, 1000)
+    # plt.xscale('log')
+    # plt.xlim(0, 1000)
     plt.xlabel(r'$L$', fontsize=13)
     plt.ylabel(r'$\varepsilon_m \ / \ 2^{n}$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
