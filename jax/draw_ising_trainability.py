@@ -33,7 +33,10 @@ def download_from_wandb(resdir):
     # runs = api.runs(project, filters=target_cfgs)
     run_ids = TARGET_RUN_IDS.split('\n')
     records = []
+    visited = set()
     for run_id in run_ids:
+        if run_id in visited:
+            raise ValueError(f'There is a duplicated run id {run_id}.')
         run = api.run(f'vqc-quantum/{project}/{run_id.strip()}')
         if run.state == 'finished':
             print(run.name)
