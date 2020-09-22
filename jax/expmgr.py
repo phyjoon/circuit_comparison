@@ -46,6 +46,8 @@ def init(project, name, config):
     if not config.time_tag:
         print('Omit the time information from experiment tag')
         DATETIME = None
+        if getattr(config, 'resume', False):
+            config.checkpoint_path = str(get_result_path('checkpoint_last.pkl'))
 
     wandb.init(
         project=project_name,
