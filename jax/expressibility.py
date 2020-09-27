@@ -36,6 +36,9 @@ parser.add_argument('--scheduler-name', type=str, metavar='NAME', default='const
                          f'(Default: constant)')
 parser.add_argument('--checkpoint-path', type=str, metavar='PATH', default=None,
                     help='A checkpoint file path to resume')
+parser.add_argument('--resume', dest='resume', action='store_true',
+                    help='Resume from the last checkpoint under `results/{exp_name}/`.'
+                         'This option works only with --no-time-tag.')
 parser.add_argument('--no-jit', dest='use_jit', action='store_false',
                     help='Disable jit option to loss function.')
 parser.add_argument('--no-time-tag', dest='time_tag', action='store_false',
