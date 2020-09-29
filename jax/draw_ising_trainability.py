@@ -99,10 +99,11 @@ def draw_optimization_energy_gap(df, linestyles):
                  label=label)
         plt.fill_between(x, y_min, y_max, alpha=0.35)
 
+    # plt.xscale('log')
     plt.yscale('log')
     # plt.xlim(0, 155)
     plt.xlabel(r'$L$', fontsize=13)
-    plt.ylabel(r'$| E(\mathbf{\theta}^*) - E_0 |$', fontsize=13)
+    plt.ylabel(r'$E(\mathbf{\theta^*}) - E_0$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
     plt.legend(loc='upper right')
 
@@ -110,7 +111,7 @@ def draw_optimization_energy_gap(df, linestyles):
     axes.spines['right'].set_visible(False)
     axes.spines['top'].set_visible(False)
     plt.tight_layout()
-    plt.savefig('fig/ising_opt_energy_gap.pdf')
+    plt.savefig('fig/ising_opt_energy_gap.pdf', bbox_inches='tight')
     plt.show()
 
 
@@ -127,6 +128,7 @@ def draw_fidelity(df, linestyles):
                  label=label)
         plt.fill_between(x, y_min, y_max, alpha=0.35)
 
+    # plt.xscale('log')
     # plt.yscale('log')
     # plt.xlim(0, 155)
     plt.xlabel(r'$L$', fontsize=13)
@@ -138,7 +140,7 @@ def draw_fidelity(df, linestyles):
     axes.spines['right'].set_visible(False)
     axes.spines['top'].set_visible(False)
     plt.tight_layout()
-    plt.savefig('fig/ising_opt_fidelity.pdf')
+    plt.savefig('fig/ising_opt_fidelity.pdf', bbox_inches='tight')
     plt.show()
 
 
@@ -166,18 +168,18 @@ def draw_convergence_speed(df, linestyles):
     axes.spines['right'].set_visible(False)
     axes.spines['top'].set_visible(False)
     plt.tight_layout()
-    plt.savefig('fig/ising_opt_convergence.pdf')
+    plt.savefig('fig/ising_opt_convergence.pdf', bbox_inches='tight')
     plt.show()
 
 
 def main():
     # Draw L vs. min_loss
-    # datapath = 'results_ising_expressibility/20200830/minloss.pkl'
+    resdir = Path(f'results_ising_expressibility/{datetime.now().strftime("%Y%m%d")}')
+    # datapath = resdir / 'minloss.pkl'
     datapath = None
     if datapath:
         df = pd.read_pickle(datapath)
     else:
-        resdir = Path(f'results_ising_expressibility/{datetime.now().strftime("%Y%m%d")}')
         df = download_from_wandb(resdir)
 
     linestyles = ['-o', '-.o', '--o', ':o']

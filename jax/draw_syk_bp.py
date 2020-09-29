@@ -18,7 +18,7 @@ def retrieve_values_from_name(fname):
 
 
 def regression(df):
-    # df = df[df.n_layers >= 10]
+    df = df[df.n_layers >= 10]
     x = np.log(df.n_layers.to_numpy())
     y = np.log(df.grad_norm_mean.to_numpy())
     reg = LinearRegression().fit(x.reshape(-1, 1), y)
@@ -159,7 +159,7 @@ def draw_grad_var_with_variance(resdir, n_qubits_list, linestyles, n_samples=500
     # plt.xlim(0, 260)
     plt.ylim(1e-5, 0.005)
     plt.xlabel(r'$L$', fontsize=13)
-    plt.ylabel(r'$\mathrm{Var}\,(\partial_{\theta_i} \, E(\mathbf{\theta}) )$', fontsize=13)
+    plt.ylabel(r'$\mathrm{Var}\,[\partial_k \, E(\mathbf{\theta}) ]$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
     plt.legend(loc='lower right')
 
@@ -194,7 +194,7 @@ def draw_grad_norm_with_shading(resdir, n_qubits_list, linestyles, n_samples=500
     plt.xlabel(r'$L$', fontsize=13)
     plt.ylabel(r'$\|\| \, \nabla_{\mathbf{\theta}} \, E(\mathbf{\theta}) \, \|\|$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
-    plt.legend(loc='upper left')
+    plt.legend(loc='lower right')
 
     axes = plt.gca()
     axes.spines['right'].set_visible(False)

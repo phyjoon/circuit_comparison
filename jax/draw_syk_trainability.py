@@ -115,10 +115,11 @@ def draw_optimization_energy_gap(df, linestyles):
                  label=label)
         plt.fill_between(x, y_min, y_max, alpha=0.35)
 
+    # plt.xscale('log')
     plt.yscale('log')
     # plt.xlim(0, 155)
     plt.xlabel(r'$L$', fontsize=13)
-    plt.ylabel(r'$| E(\mathbf{\theta}^*) - E_0 |$', fontsize=13)
+    plt.ylabel(r'$E(\mathbf{\theta}^*) - E_0$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
     plt.legend(loc='upper right')
 
@@ -143,6 +144,7 @@ def draw_fidelity(df, linestyles):
                  label=label)
         plt.fill_between(x, y_min, y_max, alpha=0.35)
 
+    # plt.xscale('log')
     # plt.yscale('log')
     # plt.xlim(0, 155)
     plt.xlabel(r'$L$', fontsize=13)
@@ -244,6 +246,7 @@ x5879m11
 37mpqzw0
 xxh8qu4y
 1vo577mm
+29d8h2k3
 23re9wkz"""
 
 
