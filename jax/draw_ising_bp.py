@@ -153,10 +153,9 @@ def draw_grad_var_with_variance(resdir, n_qubits_list, linestyles,
 
     plt.xscale(xscale)
     plt.yscale(yscale)
-    # plt.xlim(0, 260)
     plt.ylim(0.005, 1.)
     plt.xlabel(r'$L$', fontsize=13)
-    plt.ylabel(r'$\mathrm{Var}\,(\partial_{\theta_i} \, E(\mathbf{\theta}) )$', fontsize=13)
+    plt.ylabel(r'$\mathrm{Var}\,[\partial_k \, E(\mathbf{\theta}) ]$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
     plt.legend(loc='lower right')
 
@@ -164,7 +163,7 @@ def draw_grad_var_with_variance(resdir, n_qubits_list, linestyles,
     axes.spines['right'].set_visible(False)
     axes.spines['top'].set_visible(False)
     plt.tight_layout()
-    plt.savefig('fig/ising_bp_grad_var.pdf')
+    plt.savefig('fig/ising_bp_grad_var.pdf', bbox_inches='tight')
     plt.show()
 
 
@@ -188,17 +187,16 @@ def draw_grad_norm_with_shading(resdir, n_qubits_list, linestyles,
 
     plt.xscale(xscale)
     plt.yscale(yscale)
-    # plt.xlim(0, 260)
     plt.xlabel(r'$L$', fontsize=13)
     plt.ylabel(r'$\|\| \, \nabla_{\mathbf{\theta}} \, E(\mathbf{\theta}) \, \|\|$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
-    plt.legend(loc='upper left')
+    plt.legend(loc='lower right')
 
     axes = plt.gca()
     axes.spines['right'].set_visible(False)
     axes.spines['top'].set_visible(False)
     plt.tight_layout()
-    plt.savefig('fig/ising_bp_grad_norm.pdf')
+    plt.savefig('fig/ising_bp_grad_norm.pdf', bbox_inches='tight')
     plt.show()
 
 
@@ -207,7 +205,7 @@ def main():
     _IGNORE_DATASET_ERROR = True
     resdir = Path(f'results_ising_bp/{datetime.now().strftime("%Y%m%d")}')
     linestyles = ['-o', '-.o', '--o', ':o']
-    n_samples = 5000
+    n_samples = 1000
     n_qubits_list = [4, 6, 8, 10]
     for i, n_qubits in enumerate(n_qubits_list):
         download_from_wandb(resdir, n_qubits)

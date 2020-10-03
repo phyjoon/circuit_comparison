@@ -101,13 +101,13 @@ def draw_expressibility(df, linestyles):
     plt.xlabel(r'$L$', fontsize=13)
     plt.ylabel(r'$\varepsilon_m \ / \ 2^{n}$', fontsize=13)
     plt.grid(True, c='0.5', ls=':', lw=0.5)
-    plt.legend(loc='upper right')
+    plt.legend(loc='lower right')
 
     axes = plt.gca()
     axes.spines['right'].set_visible(False)
     axes.spines['top'].set_visible(False)
     plt.tight_layout()
-    plt.savefig('fig/expressibility.pdf')
+    plt.savefig('fig/expressibility.pdf', bbox_inches='tight')
     plt.show()
 
 
@@ -589,51 +589,41 @@ vxfd5vk6
 cedz4p0g
 1dycjczg
 97abrbmv
-1swzp0es
-1ai1zndv
-
-
-
+1swzp0es,2ht6lg12
+1ai1zndv,onyl96qg
+5cvjja3i,2dsyordt
+ujx0qnt0,7zw9rcbe
+1bfd5x4o,3qpjtyuy
 1jegcv8d
 1xkvrpht
 5l1gk99j,318155lh
-2nwfpgy0
-22xyoky9
+2nwfpgy0,qw78u626
+22xyoky9,1d782rka
 igvdjjlb,rq0okqrx
-191ltnl8
-
-
-
+191ltnl8,1rmkuffp,241itbiy
+35pw3kfk,ubainxek
+1dq9p1y7,2yg9p22g
+2o8ncw10,1k90n738
 3r1f63xt
 1g34n0jg
 rgk3xsl2
-1156ddzn
-2uqgyzj3
-27oorkxt
-
-16ga9nlb
-1lrnu9r3
-3acdca95
+1156ddzn,1nimob8l,110yg884
+2uqgyzj3,y7lfog9g,2en8u13f,3rrpwldg
+27oorkxt,1qhvq9p5,1nh1s9k4
+2ig863h0,2s9jgd0r
+16ga9nlb,28xabrws,lp2zd64u
+1lrnu9r3,1hkpekl3,ux8dhobx,2kl7it36
+3acdca95,382qp6z8
 3rc47llo
 2ftzn9nc
-
+2nnj9axe
 6w3evxo0
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-"""
+30i2nve8
+1wmulgss,2scg0axq,2avm9y0a
+28b7v9vx,34gxkn7c,20p4kkui
+2wnyqnpv
+34zdr2o5,b0w0eq0d
+1da1tvvq"""
 
 
 if __name__ == '__main__':

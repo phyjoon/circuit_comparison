@@ -79,7 +79,7 @@ def main():
     plt.legend(loc='lower right')
 
     plt.tight_layout()
-    plt.savefig('fig/ising_optimization_ed.pdf')
+    plt.savefig('fig/ising_optimization_ed.pdf', bbox_inches='tight')
     plt.show()
 
 
